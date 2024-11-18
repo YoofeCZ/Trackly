@@ -19,8 +19,7 @@ const Clients = () => {
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [isFileManagerVisible, setIsFileManagerVisible] = useState(false);
   const [currentClient, setCurrentClient] = useState(null);
-  const [newClient, setNewClient] = useState({
-    
+  const [newClient, setNewClient] = useState({  
     name: '',
     email: '',
     phone: '',
@@ -217,9 +216,9 @@ const Clients = () => {
       key: 'opCodes',
       render: (opCodes) => {
         if (Array.isArray(opCodes) && opCodes.length > 0) {
-          return opCodes.join(', '); // Spojí hodnoty do jednoho řetězce odděleného čárkami
+          return opCodes.join(', ');
         }
-        return 'N/A'; // Pokud není žádný OP
+        return 'N/A';
       },
     },
     {
@@ -323,17 +322,18 @@ const Clients = () => {
     </Form.Item>
     <Form.Item label="OP (volitelné)">
   <Input
-    value={currentClient?.opCodes?.join(', ') || newClient.opCodes.join(', ')} // Kontrola, zda existuje opCodes
+    value={currentClient?.opCodes?.join(', ') || newClient.opCodes?.join(', ') || ''} // Bezpečná kontrola
     onChange={(e) => {
-      const value = e.target.value.split(',').map((op) => op.trim()); // Rozdělení hodnot podle čárky
+      const value = e.target.value.split(',').map((op) => op.trim()); // Rozdělení podle čárky
       if (currentClient) {
-        setCurrentClient({ ...currentClient, opCodes: value }); // Nastavení pro úpravu klienta
+        setCurrentClient({ ...currentClient, opCodes: value }); // Aktualizace existujícího klienta
       } else {
-        setNewClient({ ...newClient, opCodes: value }); // Nastavení pro nový klient
+        setNewClient({ ...newClient, opCodes: value }); // Nastavení nového klienta
       }
     }}
   />
 </Form.Item>
+
 
   </Form>
 </Modal>
