@@ -1,0 +1,115 @@
+const { DataTypes } = require('sequelize');
+const sequelize = require('../database'); // Přizpůsob cestu k databázi
+
+const Report = sequelize.define('Report', {
+  // Identifikace zakázky
+  date: {
+    type: DataTypes.DATE,
+    allowNull: false,
+  },
+  description: {
+    type: DataTypes.TEXT,
+    allowNull: false,
+  },
+  technicianId: {
+    type: DataTypes.INTEGER,
+    allowNull: false,
+  },
+  clientId: {
+    type: DataTypes.INTEGER,
+    allowNull: false,
+  },
+  opCode: {
+    type: DataTypes.STRING, // Unikátní identifikátor obchodního případu
+    allowNull: false,
+  },
+
+  // Časová osa
+  departureTime: {
+    type: DataTypes.DATE,
+    allowNull: true,
+  },
+  arrivalTime: {
+    type: DataTypes.DATE,
+    allowNull: true,
+  },
+  leaveTime: {
+    type: DataTypes.DATE,
+    allowNull: true,
+  },
+  returnTime: {
+    type: DataTypes.DATE,
+    allowNull: true,
+  },
+  transitionTime: {
+    type: DataTypes.INTEGER, // Čas přejezdu v minutách
+    allowNull: true,
+  },
+  totalTime: {
+    type: DataTypes.INTEGER, // Celkový čas v minutách
+    allowNull: true,
+  },
+
+  // Použitý materiál
+  materialUsed: {
+    type: DataTypes.JSONB, // Seznam materiálů: {name, quantity, price}
+    allowNull: true,
+  },
+  files: {
+    type: DataTypes.JSONB,
+    defaultValue: [],
+},
+  totalMaterialCost: {
+    type: DataTypes.FLOAT, // Celková cena za materiál
+    allowNull: true,
+  },
+
+  // Náklady a výpočet ceny
+  hourlyRate: {
+    type: DataTypes.FLOAT, // Hodinová sazba technika
+    allowNull: true,
+  },
+  travelCost: {
+    type: DataTypes.FLOAT, // Cestovní náklady
+    allowNull: true,
+  },
+  totalWorkCost: {
+    type: DataTypes.FLOAT, // Celkové náklady na práci
+    allowNull: true,
+  },
+  totalCost: {
+    type: DataTypes.FLOAT, // Celková cena zakázky
+    allowNull: true,
+  },
+
+  // Stav zakázky
+  status: {
+    type: DataTypes.STRING, // Stav zakázky: Rozpracováno, Dokončeno, Čeká na schválení
+    allowNull: true,
+  },
+  notes: {
+    type: DataTypes.TEXT, // Další poznámky
+    allowNull: true,
+  },
+
+  // Elektronický podpis
+  technicianSignature: {
+    type: DataTypes.STRING, // Uloží cestu k souboru s podpisem
+    allowNull: true,
+  },
+
+
+  opCode: {
+    type: DataTypes.STRING, // OP bude jedinečné pro report
+},
+clientId: {
+    type: DataTypes.INTEGER,
+    references: { model: 'Clients', key: 'id' }, // Vazba na klienta
+    allowNull: true,
+},
+
+});
+
+
+
+module.exports = Report;
