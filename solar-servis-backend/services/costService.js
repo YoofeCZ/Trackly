@@ -1,4 +1,12 @@
-function calculateCosts(materials, hourlyRate, travelCost, totalTime) {
+/**
+ * Výpočet celkových nákladů
+ * @param {Array} materials - Pole s materiály, každý obsahuje {quantity, unitPrice}.
+ * @param {number} hourlyRate - Sazba za hodinu práce.
+ * @param {number} travelCost - Náklady na cestování.
+ * @param {number} totalTime - Celkový čas strávený na zakázce (v hodinách).
+ * @param {boolean} chargeTravel - Určuje, zda má být cestování účtováno zákazníkovi.
+ */
+function calculateCosts(materials, hourlyRate, travelCost, totalTime, chargeTravel = true) {
     // Výpočet ceny za materiál
     const materialCost = materials.reduce((sum, material) => {
         return sum + (material.quantity * material.unitPrice || 0);
@@ -7,36 +15,46 @@ function calculateCosts(materials, hourlyRate, travelCost, totalTime) {
     // Výpočet ceny za práci
     const laborCost = hourlyRate * totalTime;
 
-    // Celkové náklady
-    const totalCosts = laborCost + materialCost + (travelCost || 0);
+    // Celkové náklady (s podmínkou účtování cestovních nákladů)
+    const totalTravelCost = chargeTravel ? travelCost : 0;
+    const totalCosts = laborCost + materialCost + totalTravelCost;
 
     return {
         laborCost,
         materialCost,
-        travelCost: travelCost || 0,
+        travelCost: totalTravelCost,
         totalCosts,
     };
 }
-module.exports = { calculateCosts };
 
-function calculateTotalTime(departureTime, arrivalTime, transitionTime) {
+/**
+ * Výpočet celkového času
+ * @param {string} departureTime - Čas odjezdu z firmy.
+ * @param {string} leaveTime - Čas odjezdu ze zakázky.
+ * @param {string} returnTime - Čas návratu na firmu.
+ */
+function calculateTotalTime(departureTime, leaveTime, returnTime) {
     const departure = new Date(departureTime);
-    const arrival = new Date(arrivalTime);
+    const leave = new Date(leaveTime);
+    const returnToOffice = new Date(returnTime);
 
-    if (isNaN(departure) || isNaN(arrival)) {
-        throw new Error('Čas odjezdu nebo příjezdu není platný.');
+    if (isNaN(departure) || isNaN(leave) || isNaN(returnToOffice)) {
+        throw new Error('Čas odjezdu, odjezdu ze zakázky nebo návratu není platný.');
     }
 
-    const totalTimeInMilliseconds = arrival - departure;
-    const transitionTimeInMilliseconds = transitionTime ? Number(transitionTime) * 60 * 1000 : 0;
+    // Doba strávená na zakázce
+    const workDurationInMilliseconds = leave - departure;
 
-    const totalTime = totalTimeInMilliseconds + transitionTimeInMilliseconds;
+    // Doba návratu na firmu
+    const returnDurationInMilliseconds = returnToOffice - leave;
 
-    if (totalTime < 0) {
-        throw new Error('Celkový čas nemůže být záporný.');
+    if (workDurationInMilliseconds < 0 || returnDurationInMilliseconds < 0) {
+        throw new Error('Časový úsek nemůže být záporný.');
     }
 
-    // Převod na hodiny
-    return totalTime / (1000 * 60 * 60); // Hodiny
+    // Celkový čas v hodinách
+    const totalTimeInMilliseconds = workDurationInMilliseconds + returnDurationInMilliseconds;
+    return totalTimeInMilliseconds / (1000 * 60 * 60); // Převod na hodiny
 }
-module.exports = { calculateTotalTime };
+
+module.exports = { calculateCosts, calculateTotalTime };

@@ -5,6 +5,7 @@ const path = require('path');
 const fs = require('fs');
 const { generateWordDocument } = require('../services/docxService');
 const { calculateCosts, calculateTotalTime } = require('../services/costService');
+const { calculateTravelTime } = require('../services/directionsService'); // Directions API
 const Report = require('../models/Report');
 const Technician = require('../models/Technician');
 const Client = require('../models/Client');
@@ -14,67 +15,91 @@ const Version = require('../models/Version');
 const router = express.Router();
 const upload = multer({ dest: 'uploads/' });
 
+// 1. Vytvoření reportu
 router.post('/', async (req, res) => {
-  try {
-      const {
-          opCode,
-          description,
-          departureTime,
-          arrivalTime,
-          transitionTime,
-          materials,
-          hourlyRate,
-          travelCost,
-          technicianId,
-          clientId,
-          notes,
-          status,
-      } = req.body;
+    try {
+        const {
+            opCode,
+            description,
+            departureTime,
+            arrivalTime,
+            leaveTime,
+            returnTime,
+            materials,
+            hourlyRate,
+            travelCost,
+            technicianId,
+            clientId,
+            notes,
+            status,
+            jobs, // Pole pro více zakázek
+        } = req.body;
 
-      // Výpočet celkového času a nákladů
-      const totalTime = calculateTotalTime(departureTime, arrivalTime, transitionTime);
-      const totalCosts = calculateCosts(materials, hourlyRate, travelCost, totalTime);
+        const reports = [];
 
-      // Vytvoření reportu
-      const report = await Report.create({
-          opCode,
-          description,
-          departureTime,
-          arrivalTime,
-          transitionTime,
-          materials,
-          hourlyRate,
-          travelCost,
-          totalTime,
-          totalCosts,
-          technicianId,
-          clientId,
-          notes,
-          status,
-      });
+        // Podpora více zakázek
+        for (const job of jobs || [{ description, materials, clientId }]) {
+            const travelTime = await calculateTravelTime(departureTime, arrivalTime);
+            const totalTime = calculateTotalTime(departureTime, leaveTime, returnTime);
+            const totalCosts = calculateCosts(job.materials, hourlyRate, travelCost, totalTime);
 
-      // Aktualizace klienta, pokud je OP nové
-      if (clientId && opCode) {
-          const client = await Client.findByPk(clientId);
-          if (client && (!client.opCodes || !client.opCodes.includes(opCode))) {
-              const updatedOpCodes = client.opCodes ? [...client.opCodes, opCode] : [opCode];
-              await client.update({ opCodes: updatedOpCodes });
-          }
-      }
+            const report = await Report.create({
+                opCode,
+                description: job.description,
+                departureTime,
+                arrivalTime,
+                leaveTime,
+                returnTime,
+                transitionTime: travelTime,
+                materials: job.materials,
+                hourlyRate,
+                travelCost,
+                totalTime,
+                totalCosts,
+                technicianId,
+                clientId: job.clientId,
+                notes,
+                status,
+            });
 
-      res.status(201).json(report);
-  } catch (error) {
-      res.status(400).json({ message: 'Chyba při vytváření reportu', error: error.message });
-  }
+            reports.push(report);
+
+            // Aktualizace klienta
+            if (clientId && opCode) {
+                const client = await Client.findByPk(clientId);
+                if (client && (!client.opCodes || !client.opCodes.includes(opCode))) {
+                    const updatedOpCodes = client.opCodes ? [...client.opCodes, opCode] : [opCode];
+                    await client.update({ opCodes: updatedOpCodes });
+                }
+            }
+        }
+
+        res.status(201).json(reports);
+    } catch (error) {
+        res.status(400).json({ message: 'Chyba při vytváření reportu', error: error.message });
+    }
 });
 
-
-// 2. Získání všech reportů
+// 2. Získání všech reportů s filtrováním
 router.get('/', async (req, res) => {
     try {
+        const { technicianId, clientId, fromDate, toDate, status } = req.query;
+        const filters = {};
+
+        if (technicianId) filters.technicianId = technicianId;
+        if (clientId) filters.clientId = clientId;
+        if (status) filters.status = status;
+        if (fromDate || toDate) {
+            filters.date = {};
+            if (fromDate) filters.date.$gte = new Date(fromDate);
+            if (toDate) filters.date.$lte = new Date(toDate);
+        }
+
         const reports = await Report.findAll({
+            where: filters,
             include: [Technician, Client],
         });
+
         res.status(200).json(reports);
     } catch (error) {
         res.status(500).json({ message: 'Chyba při získávání reportů', error: error.message });
@@ -83,21 +108,20 @@ router.get('/', async (req, res) => {
 
 // 3. Získání jednoho reportu
 router.get('/:id', async (req, res) => {
-  try {
-      const report = await Report.findByPk(req.params.id, {
-          include: [Client],
-      });
+    try {
+        const report = await Report.findByPk(req.params.id, {
+            include: [Client],
+        });
 
-      if (!report) {
-          return res.status(404).json({ message: 'Report nenalezen' });
-      }
+        if (!report) {
+            return res.status(404).json({ message: 'Report nenalezen' });
+        }
 
-      res.status(200).json(report);
-  } catch (error) {
-      res.status(500).json({ message: 'Chyba při získávání reportu', error: error.message });
-  }
+        res.status(200).json(report);
+    } catch (error) {
+        res.status(500).json({ message: 'Chyba při získávání reportu', error: error.message });
+    }
 });
-
 
 // 4. Aktualizace reportu
 router.put('/:id', async (req, res) => {
@@ -140,22 +164,21 @@ router.delete('/:id', async (req, res) => {
 
 // 6. Nahrávání souborů
 router.post('/:id/upload', upload.single('file'), async (req, res) => {
-  try {
-      const report = await Report.findByPk(req.params.id);
-      if (!report) {
-          return res.status(404).json({ message: 'Report nenalezen' });
-      }
+    try {
+        const report = await Report.findByPk(req.params.id);
+        if (!report) {
+            return res.status(404).json({ message: 'Report nenalezen' });
+        }
 
-      const filePath = req.file.path;
-      const updatedFiles = [...(report.files || []), filePath];
-      await report.update({ files: updatedFiles });
+        const filePath = req.file.path;
+        const updatedFiles = [...(report.files || []), filePath];
+        await report.update({ files: updatedFiles });
 
-      res.status(200).json({ message: 'Soubor nahrán', files: updatedFiles });
-  } catch (error) {
-      res.status(500).json({ message: 'Chyba při nahrávání souboru', error: error.message });
-  }
+        res.status(200).json({ message: 'Soubor nahrán', files: updatedFiles });
+    } catch (error) {
+        res.status(500).json({ message: 'Chyba při nahrávání souboru', error: error.message });
+    }
 });
-
 
 // 7. Generování a ukládání Word dokumentu
 router.post('/:id/generate-document', async (req, res) => {
@@ -179,7 +202,6 @@ router.post('/:id/generate-document', async (req, res) => {
 
         return res.json({ message: 'Dokument byl úspěšně uložen', path: filePath });
     } catch (error) {
-        console.error('Chyba při generování dokumentu:', error);
         res.status(500).json({ message: 'Chyba při generování dokumentu' });
     }
 });
@@ -211,12 +233,11 @@ router.post('/:id/save-version', async (req, res) => {
 
         return res.json({ message: 'Verze byla úspěšně uložena', version: newVersion });
     } catch (error) {
-        console.error('Chyba při ukládání verze:', error);
         res.status(500).json({ message: 'Chyba při ukládání verze' });
     }
 });
 
-// 9. Odesílání emailů
+// 9. Odesílání e-mailů
 router.post('/:id/send-email', async (req, res) => {
     try {
         const { id } = req.params;
@@ -241,11 +262,8 @@ router.post('/:id/send-email', async (req, res) => {
 
         return res.json({ message: 'Email byl úspěšně odeslán' });
     } catch (error) {
-        console.error('Chyba při odesílání emailu:', error);
         res.status(500).json({ message: 'Chyba při odesílání emailu' });
     }
 });
-
-
 
 module.exports = router;

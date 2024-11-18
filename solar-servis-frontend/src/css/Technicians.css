@@ -1,0 +1,16 @@
+/* Technicians.css */
+
+/* Nastavení akčních tlačítek v kartě */
+.card-actions {
+    display: flex;
+    justify-content: space-around; /* Rovnoměrné rozložení */
+    flex-wrap: wrap; /* Zalamování tlačítek na další řádky */
+    gap: 1px; /* Menší mezery mezi tlačítky */
+    align-items: center; /* Vertikální zarovnání na střed */
+  }
+  
+  .card {
+    min-width: 800px; /* Nastavení minimální šířky karty */
+    word-wrap: break-word; /* Zalamování dlouhého textu */
+  }
+  

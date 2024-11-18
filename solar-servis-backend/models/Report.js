@@ -20,9 +20,16 @@ const Report = sequelize.define('Report', {
     allowNull: false,
   },
   opCode: {
-    type: DataTypes.STRING, // Unikátní identifikátor obchodního případu
+    type: DataTypes.STRING, // OP bude jedinečné pro report
     allowNull: false,
-  },
+    validate: {
+        isValidFormat(value) {
+            if (!/^[A-Z]{2}-\d{3}-\d{3}$/.test(value)) {
+                throw new Error('OP musí být ve formátu OP-323-332.');
+            }
+        },
+    },
+},
 
   // Časová osa
   departureTime: {

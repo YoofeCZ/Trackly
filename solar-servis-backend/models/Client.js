@@ -41,9 +41,9 @@ const Client = sequelize.define('Client', {
         if (!Array.isArray(value)) {
           throw new Error('opCodes musí být pole řetězců.');
         }
-        value.forEach((code) => {
-          if (typeof code !== 'string' || !code.match(/^[a-zA-Z0-9]+$/)) {
-            throw new Error('Každý OP musí být řetězec obsahující pouze písmena a číslice.');
+        value.forEach((op) => {
+          if (!/^[a-zA-Z0-9-]+$/.test(op)) {
+            throw new Error('Každý OP může obsahovat pouze písmena, čísla a pomlčky.');
           }
         });
       },

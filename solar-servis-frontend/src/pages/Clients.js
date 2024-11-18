@@ -320,11 +320,28 @@ const Clients = () => {
         }
       />
     </Form.Item>
-    <Form.Item label="OP (volitelné)">
+    <Form.Item
+  label="OP (volitelné)"
+  validateStatus={
+    (currentClient?.opCodes && currentClient.opCodes.some((op) => !/^[a-zA-Z0-9-]+$/.test(op))) ||
+    (newClient.opCodes && newClient.opCodes.some((op) => !/^[a-zA-Z0-9-]+$/.test(op)))
+      ? 'error'
+      : ''
+  }
+  help={
+    (currentClient?.opCodes && currentClient.opCodes.some((op) => !/^[a-zA-Z0-9-]+$/.test(op))) ||
+    (newClient.opCodes && newClient.opCodes.some((op) => !/^[a-zA-Z0-9-]+$/.test(op)))
+      ? 'OP může obsahovat pouze písmena, čísla a pomlčky.'
+      : ''
+  }
+>
   <Input
     value={currentClient?.opCodes?.join(', ') || newClient.opCodes?.join(', ') || ''} // Bezpečná kontrola
     onChange={(e) => {
-      const value = e.target.value.split(',').map((op) => op.trim()); // Rozdělení podle čárky
+      const value = e.target.value
+        .split(',')
+        .map((op) => op.trim())
+        .filter((op) => /^[a-zA-Z0-9-]+$/.test(op)); // Filtrování pouze platných OP
       if (currentClient) {
         setCurrentClient({ ...currentClient, opCodes: value }); // Aktualizace existujícího klienta
       } else {
@@ -333,6 +350,7 @@ const Clients = () => {
     }}
   />
 </Form.Item>
+
 
 
   </Form>

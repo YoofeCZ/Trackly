@@ -92,7 +92,7 @@ export const getClients = async () => {
 export const createClient = async (clientData) => {
   try {
     console.log("Odesílám data do backendu:", clientData); // Přidáme logování
-    const response = await fetch('http://localhost:3000/api/clients', {
+    const response = await fetch('http://localhost:5000/api/clients', {
       method: 'POST',
       headers: {
         'Content-Type': 'application/json',

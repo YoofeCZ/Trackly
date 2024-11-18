@@ -11,6 +11,8 @@ import {
 } from '@ant-design/icons';
 import moment from 'moment';
 import { useLocation } from 'react-router-dom';
+import '../css/Technicians.css';
+
 
 const { Option } = Select;
 
@@ -401,20 +403,56 @@ function Technicians() {
       <Row gutter={[16, 16]}>
         {filteredTechnicians.map((technician) => (
           <Col key={technician.id} xs={24} sm={12} md={8}>
-            <Card
-              title={`${technician.name} (${technician.employeeId})`}
-              actions={[
-                <Button type="link" icon={<ProfileOutlined />} onClick={() => handleViewReports(technician.id)}>Zobrazit Reporty</Button>,
-                <Button type="link" icon={<FileTextOutlined />} onClick={() => handleViewTasks(technician.id)}>Zobrazit Úkoly</Button>,
-                <Button type="link" icon={<PlusOutlined />} onClick={() => handleAddTask(technician.id)}>Přidat Úkol</Button>,
-                <Button type="primary" icon={<EditOutlined />} onClick={() => handleEditTechnician(technician)}>Upravit</Button>,
-                <Button type="danger" icon={<DeleteOutlined />} onClick={() => handleDeleteTechnician(technician.id)}>Smazat</Button>,
-              ]}
-            >
-              <p>Email: {technician.email}</p>
-              <p>Telefon: {technician.phone}</p>
-              <p>Adresa: {technician.address}</p>
-            </Card>
+<Card
+  title={`${technician.name} (${technician.employeeId})`}
+  actions={[
+    <div className="card-actions">
+      <Button
+        type="link"
+        icon={<ProfileOutlined />}
+        onClick={() => handleViewReports(technician.id)}
+      >
+        Zobrazit Reporty
+      </Button>
+      <Button
+        type="link"
+        icon={<FileTextOutlined />}
+        onClick={() => handleViewTasks(technician.id)}
+      >
+        Zobrazit Úkoly
+      </Button>
+      <Button
+        type="link"
+        icon={<PlusOutlined />}
+        onClick={() => handleAddTask(technician.id)}
+      >
+        Přidat Úkol
+      </Button>
+      <Button
+        type="primary"
+        icon={<EditOutlined />}
+        onClick={() => handleEditTechnician(technician)}
+      >
+        Upravit
+      </Button>
+      <Button
+        type="danger"
+        icon={<DeleteOutlined />}
+        onClick={() => handleDeleteTechnician(technician.id)}
+      >
+        Smazat
+      </Button>
+    </div>,
+  ]}
+  className="card" // Přidá třídu k celé kartě
+>
+  <p>Email: {technician.email}</p>
+  <p>Telefon: {technician.phone}</p>
+  <p>Adresa: {technician.address}</p>
+</Card>
+
+
+
           </Col>
         ))}
       </Row>
