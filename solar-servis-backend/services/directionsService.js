@@ -1,7 +1,7 @@
 import superagent from 'superagent';
 
 const GOOGLE_MAPS_API_KEY = process.env.GOOGLE_MAPS_API_KEY;
-
+console.log('GOOGLE_MAPS_API_KEY:', GOOGLE_MAPS_API_KEY); // Logování
 /**
  * Funkce pro výpočet času a vzdálenosti mezi dvěma body.
  * @param {Object} from - Souřadnice startovního bodu (lat, lng).

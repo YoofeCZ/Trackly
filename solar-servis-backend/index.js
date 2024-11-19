@@ -1,3 +1,4 @@
+//backend index
 import 'dotenv/config';
 import dotenv from 'dotenv';
 import express from 'express';
@@ -32,18 +33,45 @@ app.use('/api/tasks', taskRoutes); // Použití /tasks route
 
 // Proxy route pro výpočet vzdálenosti pomocí Google API
 app.get('/api/distance', async (req, res) => {
+    // Logování celého objektu query
+    console.log('Query parametry:', req.query);
   const { origins, destinations } = req.query;
+
+  // Logování přijatých parametrů
+  console.log('Celý požadavek:', req.query);
+console.log('Parametr origins:', req.query.origins);
+console.log('Parametr destinations:', req.query.destinations);
+  console.log('Přijaté parametry:', { origins, destinations });
+
+  // Validace parametrů
+  if (!origins || !destinations) {
+    console.error('Chyba: origins nebo destinations nejsou nastavené.', {
+      origins,
+      destinations,
+    });
+    return res.status(400).json({
+      error: 'Origins nebo destinations nejsou správně nastavené.',
+      detail: { origins, destinations },
+    });
+  }
+
   const GOOGLE_MAPS_API_KEY = process.env.GOOGLE_MAPS_API_KEY;
+
+  // Logování načtení klíče
+  console.log('GOOGLE_MAPS_API_KEY:', GOOGLE_MAPS_API_KEY);
 
   // Ověření, že API klíč je dostupný
   if (!GOOGLE_MAPS_API_KEY) {
-    return res.status(500).json({ error: 'API klíč není nastaven. Ujistěte se, že je GOOGLE_MAPS_API_KEY definován ve vašem .env souboru.' });
+    console.error('API klíč není nastaven.');
+    return res.status(500).json({
+      error: 'API klíč není nastaven. Ujistěte se, že je GOOGLE_MAPS_API_KEY definován ve vašem .env souboru.',
+    });
   }
 
   try {
-    // Volání Google Distance Matrix API pomocí superagent
+    // Logování parametrů volání Google API
     console.log(`Volání Google API s origins: ${origins}, destinations: ${destinations}`);
-    
+
     const response = await superagent
       .get('https://maps.googleapis.com/maps/api/distancematrix/json')
       .query({
@@ -52,20 +80,32 @@ app.get('/api/distance', async (req, res) => {
         key: GOOGLE_MAPS_API_KEY,
       });
 
+    // Logování celé odpovědi Google API
+    console.log('Kompletní odpověď Google API:', response.body);
+
     // Kontrola, zda je odpověď od Google API platná
     if (response.body && response.body.status === 'OK' && response.body.rows.length > 0) {
       const data = response.body;
-      console.log('Odpověď Google API:', data);
+      console.log('Platná odpověď Google API:', data);
       res.json(data); // Odeslání odpovědi zpět klientovi
     } else {
       console.error('Neplatná odpověď z Google API:', response.body);
-      res.status(500).json({ error: 'Nastala chyba při získávání dat z Google API', detail: response.body });
+      res.status(500).json({
+        error: 'Nastala chyba při získávání dat z Google API',
+        detail: response.body,
+      });
     }
   } catch (error) {
+    // Logování chyby při volání Google API
     console.error('Chyba při volání Google API:', error.response ? error.response.text : error);
-    res.status(500).json({ error: 'Nastala chyba při volání Google API', detail: error.response ? error.response.text : error });
+    res.status(500).json({
+      error: 'Nastala chyba při volání Google API',
+      detail: error.response ? error.response.text : error,
+    });
   }
 });
+
+
 
 // Synchronizace databáze
 sequelize.sync({ alter: true }) // Použijeme alter pro přidání nových tabulek bez mazání existujících dat
