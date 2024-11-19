@@ -1,11 +1,18 @@
-// database.js
-const { Sequelize } = require('sequelize');
-require('dotenv').config();
+// Cesta: database.js
+import { Sequelize } from 'sequelize';
+import dotenv from 'dotenv';
+
+dotenv.config();
 
 // Inicializace Sequelize pro PostgreSQL databázi
-const sequelize = new Sequelize(process.env.DB_NAME, process.env.DB_USER, process.env.DB_PASSWORD, {
-  host: process.env.DB_HOST,
-  dialect: 'postgres',
-});
+const sequelize = new Sequelize(
+  process.env.DB_NAME,
+  process.env.DB_USER,
+  process.env.DB_PASSWORD,
+  {
+    host: process.env.DB_HOST,
+    dialect: 'postgres',
+  }
+);
 
-module.exports = sequelize;
+export default sequelize; // Použití export default pro správný import v ESM

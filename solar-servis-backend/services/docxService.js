@@ -1,4 +1,12 @@
-async function generateWordDocument(report) {
+// Cesta: services/docxService.js
+import { Document, Packer, Paragraph } from 'docx';
+
+/**
+ * Vygenerování dokumentu Word na základě zadaného reportu
+ * @param {Object} report - Objekt obsahující data o reportu
+ * @returns {Promise<Buffer>} - Vrací Promise s Buffer, který představuje vygenerovaný dokument
+ */
+export async function generateWordDocument(report) {
     const sections = [
         new Paragraph({ text: `Report: ${report.opCode}`, heading: "Title" }),
         new Paragraph({ text: `Client: ${report.Client.name}` }),

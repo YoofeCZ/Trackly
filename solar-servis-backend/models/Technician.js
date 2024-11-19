@@ -1,6 +1,6 @@
 //models/Technicians.js
-const { DataTypes } = require('sequelize');
-const sequelize = require('../database');
+import { DataTypes } from 'sequelize';
+import sequelize from '../database.js';
 
 const Technician = sequelize.define('Technician', {
   name: {
@@ -30,4 +30,4 @@ const Technician = sequelize.define('Technician', {
   },
 });
 
-module.exports = Technician;
+export default Technician;

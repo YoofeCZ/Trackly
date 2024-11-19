@@ -1,5 +1,5 @@
-const { DataTypes } = require('sequelize');
-const sequelize = require('../database'); // Import připojení k databázi
+import { DataTypes } from 'sequelize';
+import sequelize from '../database.js'; // Přidání .js přípony pro správný import v ESM
 
 const Client = sequelize.define('Client', {
   name: {
@@ -51,4 +51,4 @@ const Client = sequelize.define('Client', {
   },
 });
 
-module.exports = Client;
+export default Client; // Změněno na export default pro správný import v ESM

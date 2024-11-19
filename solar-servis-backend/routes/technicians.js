@@ -1,8 +1,8 @@
 // routes/technicians.js
-const express = require('express');
-const router = express.Router();
-const Technician = require('../models/Technician');
+import express from 'express';
+import Technician from '../models/Technician.js';
 
+const router = express.Router();
 // Přidání nového technika
 router.post('/', async (req, res) => {
   try {
@@ -46,4 +46,4 @@ router.delete('/:id', async (req, res) => {
   }
 });
 
-module.exports = router;
+export default router;

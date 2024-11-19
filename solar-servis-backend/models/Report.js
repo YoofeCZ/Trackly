@@ -1,5 +1,5 @@
-const { DataTypes } = require('sequelize');
-const sequelize = require('../database'); // Přizpůsob cestu k databázi
+import { DataTypes } from 'sequelize';
+import sequelize from '../database.js'; // Přidání .js přípony pro správný import v ESM
 
 const Report = sequelize.define('Report', {
   // Identifikace zakázky
@@ -119,4 +119,4 @@ clientId: {
 
 
 
-module.exports = Report;
+export default Report; // Použití export default pro správný import v ESM

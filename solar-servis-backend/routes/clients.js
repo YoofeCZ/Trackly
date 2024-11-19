@@ -1,9 +1,16 @@
-const express = require('express');
+import express from 'express';
+import multer from 'multer';
+import path from 'path';
+import fs from 'fs';
+import Client from '../models/Client.js';
+import { fileURLToPath } from 'url';
+
+// Vytvoření ekvivalentu `__dirname` v ES Modulech
+const __filename = fileURLToPath(import.meta.url);
+const __dirname = path.dirname(__filename);
+
+// Inicializace routeru
 const router = express.Router();
-const Client = require('../models/Client');
-const multer = require('multer');
-const path = require('path');
-const fs = require('fs');
 
 // Vytvořit složku 'uploads', pokud neexistuje
 const uploadDir = path.join(__dirname, '../uploads');
@@ -41,6 +48,7 @@ const storage = multer.diskStorage({
 });
 
 const upload = multer({ storage });
+
 
 // Přidání nového klienta
 router.post('/', async (req, res) => {
@@ -205,4 +213,4 @@ router.put('/:id', async (req, res) => {
 
 
 
-module.exports = router;
+export default router;

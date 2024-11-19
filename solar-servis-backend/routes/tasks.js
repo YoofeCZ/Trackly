@@ -1,7 +1,8 @@
 // routes/tasks.js
-const express = require('express');
+import express from 'express';
+import Task from '../models/Task.js';
+
 const router = express.Router();
-const Task = require('../models/Task');
 
 // Přidání nového úkolu (POST /api/tasks)
 router.post('/', async (req, res) => {
@@ -80,4 +81,4 @@ router.delete('/:id', async (req, res) => {
 });
 
 
-module.exports = router;
+export default router;

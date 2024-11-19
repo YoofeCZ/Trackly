@@ -1,3 +1,5 @@
+// Cesta: services/costService.js
+
 /**
  * Výpočet celkových nákladů
  * @param {Array} materials - Pole s materiály, každý obsahuje {quantity, unitPrice}.
@@ -6,7 +8,7 @@
  * @param {number} totalTime - Celkový čas strávený na zakázce (v hodinách).
  * @param {boolean} chargeTravel - Určuje, zda má být cestování účtováno zákazníkovi.
  */
-function calculateCosts(materials, hourlyRate, travelCost, totalTime, chargeTravel = true) {
+export function calculateCosts(materials, hourlyRate, travelCost, totalTime, chargeTravel = true) {
     // Výpočet ceny za materiál
     const materialCost = materials.reduce((sum, material) => {
         return sum + (material.quantity * material.unitPrice || 0);
@@ -33,7 +35,7 @@ function calculateCosts(materials, hourlyRate, travelCost, totalTime, chargeTrav
  * @param {string} leaveTime - Čas odjezdu ze zakázky.
  * @param {string} returnTime - Čas návratu na firmu.
  */
-function calculateTotalTime(departureTime, leaveTime, returnTime) {
+export function calculateTotalTime(departureTime, leaveTime, returnTime) {
     const departure = new Date(departureTime);
     const leave = new Date(leaveTime);
     const returnToOffice = new Date(returnTime);
@@ -56,5 +58,3 @@ function calculateTotalTime(departureTime, leaveTime, returnTime) {
     const totalTimeInMilliseconds = workDurationInMilliseconds + returnDurationInMilliseconds;
     return totalTimeInMilliseconds / (1000 * 60 * 60); // Převod na hodiny
 }
-
-module.exports = { calculateCosts, calculateTotalTime };

@@ -1,5 +1,5 @@
-const { DataTypes } = require('sequelize');
-const sequelize = require('../database');
+import { DataTypes } from 'sequelize';
+import sequelize from '../database.js';
 
 const Version = sequelize.define('Version', {
     reportId: {
@@ -29,4 +29,4 @@ const Version = sequelize.define('Version', {
     },
 });
 
-module.exports = Version;
+export default Version;

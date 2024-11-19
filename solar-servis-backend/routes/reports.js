@@ -1,20 +1,19 @@
-const express = require('express');
-const multer = require('multer');
-const nodemailer = require('nodemailer');
-const path = require('path');
-const fs = require('fs');
-const { generateWordDocument } = require('../services/docxService');
-const { calculateCosts, calculateTotalTime } = require('../services/costService');
-const { calculateTravelTime } = require('../services/directionsService'); // Directions API
-const Report = require('../models/Report');
-const Technician = require('../models/Technician');
-const Client = require('../models/Client');
-const ChangeLog = require('../models/ChangeLog');
-const Version = require('../models/Version');
+import express from 'express';
+import multer from 'multer';
+import nodemailer from 'nodemailer';
+import path from 'path';
+import fs from 'fs';
+import { generateWordDocument } from '../services/docxService.js';
+import { calculateCosts, calculateTotalTime } from '../services/costService.js';
+import { calculateTravelTime } from '../services/directionsService.js';
+import Report from '../models/Report.js';
+import Technician from '../models/Technician.js';
+import Client from '../models/Client.js';
+import ChangeLog from '../models/ChangeLog.js';
+import Version from '../models/Version.js';
 
 const router = express.Router();
 const upload = multer({ dest: 'uploads/' });
-
 // 1. Vytvoření reportu
 router.post('/', async (req, res) => {
     try {
@@ -266,4 +265,4 @@ router.post('/:id/send-email', async (req, res) => {
     }
 });
 
-module.exports = router;
+export default router;

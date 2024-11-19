@@ -1,6 +1,6 @@
 // Cesta: models/ChangeLog.js
-const { DataTypes } = require('sequelize');
-const sequelize = require('../database'); // Ověř správnost této cesty
+import { DataTypes } from 'sequelize';
+import sequelize from '../database.js'; // Přidání .js přípony pro správný import v ESM
 
 const ChangeLog = sequelize.define('ChangeLog', {
     reportId: {
@@ -30,4 +30,4 @@ const ChangeLog = sequelize.define('ChangeLog', {
     },
 });
 
-module.exports = ChangeLog;
+export default ChangeLog; // Změněno na export default pro správný import v ESM
