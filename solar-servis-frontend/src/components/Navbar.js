@@ -38,6 +38,9 @@ function Navbar() {
           <Menu.Item key="/tasks" style={{ fontSize: '16px' }}>
             <Link to="/tasks">Úkoly</Link>
           </Menu.Item>
+          <Menu.Item key="/warehouse" style={{ fontSize: '16px' }}>
+            <Link to="/warehouse">Sklad</Link>
+          </Menu.Item>
         </Menu>
       </Header>
     </Layout>

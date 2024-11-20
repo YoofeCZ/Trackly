@@ -221,4 +221,47 @@ export const deleteClient = async (id) => {
   return await response.json();
 };
 
+// Získání všech materiálů
+export const getWarehouseItems = async () => {
+  try {
+    const response = await axios.get(`${API_URL}/warehouse`);
+    return response.data;
+  } catch (error) {
+    console.error('Chyba při získávání materiálů:', error);
+    throw error;
+  }
+};
 
+// Přidání nového materiálu
+export const addWarehouseItem = async (item) => {
+  try {
+    const response = await axios.post(`${API_URL}/warehouse`, item);
+    return response.data;
+  } catch (error) {
+    console.error('Chyba při přidávání materiálu:', error);
+    throw error;
+  }
+};
+
+
+// Aktualizace materiálu
+export const updateWarehouseItem = async (id, item) => {
+  try {
+    const response = await axios.put(`${API_URL}/warehouse/${id}`, item);
+    return response.data;
+  } catch (error) {
+    console.error('Chyba při aktualizaci materiálu:', error);
+    throw error;
+  }
+};
+
+// Smazání materiálu
+export const deleteWarehouseItem = async (id) => {
+  try {
+    const response = await axios.delete(`${API_URL}/warehouse/${id}`);
+    return response.data;
+  } catch (error) {
+    console.error('Chyba při mazání materiálu:', error);
+    throw error;
+  }
+};

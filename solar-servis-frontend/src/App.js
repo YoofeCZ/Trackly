@@ -6,6 +6,7 @@ import Technicians from './pages/Technicians';
 import Clients from './pages/Clients';
 import Reports from './pages/Reports';
 import Tasks from './pages/Tasks'; // Importovat stránku s úkoly
+import Warehouse from './pages/Warehouse'; // Importovat stránku s úkoly
 
 function App() {
   return (
@@ -17,6 +18,7 @@ function App() {
         <Route path="/clients" element={<Clients />} />
         <Route path="/reports" element={<Reports />} />
         <Route path="/tasks" element={<Tasks />} /> {/* Přidat Route pro úkoly */}
+        <Route path="/warehouse" element={<Warehouse />} />
       </Routes>
     </Router>
   );

@@ -8,6 +8,7 @@ import technicianRoutes from './routes/technicians.js';
 import clientRoutes from './routes/clients.js';
 import reportRoutes from './routes/reports.js';
 import taskRoutes from './routes/tasks.js';
+import warehouseRouter from './routes/warehouse.js';
 import superagent from 'superagent';
 
 // Načtení proměnných prostředí
@@ -30,6 +31,7 @@ app.use('/api/technicians', technicianRoutes);
 app.use('/api/clients', clientRoutes);
 app.use('/api/reports', reportRoutes);
 app.use('/api/tasks', taskRoutes); // Použití /tasks route
+app.use('/api/warehouse', warehouseRouter); // Připojení skladu
 
 // Proxy route pro výpočet vzdálenosti pomocí Google API
 app.get('/api/distance', async (req, res) => {
