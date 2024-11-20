@@ -31,13 +31,24 @@ router.post('/', async (req, res) => {
 router.put('/:id', async (req, res) => {
   try {
     const { name, price, quantity } = req.body;
-    await Warehouse.update({ name, price, quantity }, { where: { id: req.params.id } });
+
+    // Validace, že množství není záporné
+    if (quantity < 0) {
+      return res.status(400).json({ error: "Množství nemůže být záporné." });
+    }
+
+    await Warehouse.update(
+      { name, price, quantity },
+      { where: { id: req.params.id } }
+    );
+
     res.json({ message: 'Materiál byl úspěšně aktualizován' });
   } catch (error) {
     console.error('Chyba při aktualizaci materiálu:', error);
     res.status(500).json({ error: 'Chyba při aktualizaci materiálu' });
   }
 });
+
 
 // DELETE - Smazání materiálu
 router.delete('/:id', async (req, res) => {

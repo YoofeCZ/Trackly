@@ -1,46 +1,49 @@
 import { DataTypes } from 'sequelize';
-import sequelize from '../database.js'; // Přidání .js přípony pro správný import v ESM
+import sequelize from '../database.js';
 
 const Report = sequelize.define('Report', {
-  // Identifikace zakázky
+  // Datum reportu
   date: {
     type: DataTypes.DATE,
     allowNull: false,
   },
+  // Popis reportu
   description: {
     type: DataTypes.TEXT,
-    allowNull: false,
+    allowNull: true, // Popis není přímo odesílán v handleSubmit, proto nastaveno jako nepovinné
   },
+  // Technik
   technicianId: {
     type: DataTypes.INTEGER,
     allowNull: false,
+    references: {
+      model: 'Technicians',
+      key: 'id',
+    },
   },
+  // Klient
   clientId: {
     type: DataTypes.INTEGER,
     allowNull: false,
+    references: {
+      model: 'Clients',
+      key: 'id',
+    },
   },
+  // OP kód
   opCode: {
-    type: DataTypes.STRING, // OP bude jedinečné pro report
+    type: DataTypes.STRING,
     allowNull: false,
     validate: {
-        isValidFormat(value) {
-            if (!/^[A-Z]{2}-\d{3}-\d{3}$/.test(value)) {
-                throw new Error('OP musí být ve formátu OP-323-332.');
-            }
-        },
+      isValidFormat(value) {
+        if (!/^[A-Z]{2}-\d{3}-\d{3}$/.test(value)) {
+          throw new Error('OP musí být ve formátu XX-123-456.');
+        }
+      },
     },
-},
-
+  },
   // Časová osa
   departureTime: {
-    type: DataTypes.DATE,
-    allowNull: true,
-  },
-  arrivalTime: {
-    type: DataTypes.DATE,
-    allowNull: true,
-  },
-  leaveTime: {
     type: DataTypes.DATE,
     allowNull: true,
   },
@@ -48,75 +51,44 @@ const Report = sequelize.define('Report', {
     type: DataTypes.DATE,
     allowNull: true,
   },
-  transitionTime: {
-    type: DataTypes.INTEGER, // Čas přejezdu v minutách
-    allowNull: true,
-  },
-  totalTime: {
-    type: DataTypes.INTEGER, // Celkový čas v minutách
-    allowNull: true,
-  },
-
-  // Použitý materiál
+  // Použité materiály
   materialUsed: {
-    type: DataTypes.JSONB, // Seznam materiálů: {name, quantity, price}
+    type: DataTypes.JSONB, // Kombinace skladových a vlastních materiálů
     allowNull: true,
   },
-  files: {
-    type: DataTypes.JSONB,
-    defaultValue: [],
-},
-  totalMaterialCost: {
-    type: DataTypes.FLOAT, // Celková cena za materiál
-    allowNull: true,
-  },
-
-  // Náklady a výpočet ceny
-  hourlyRate: {
-    type: DataTypes.FLOAT, // Hodinová sazba technika
-    allowNull: true,
-  },
-  travelCost: {
-    type: DataTypes.FLOAT, // Cestovní náklady
-    allowNull: true,
-  },
+  // Náklady
   totalWorkCost: {
-    type: DataTypes.FLOAT, // Celkové náklady na práci
+    type: DataTypes.FLOAT,
     allowNull: true,
   },
-  totalCost: {
-    type: DataTypes.FLOAT, // Celková cena zakázky
+  totalTravelCost: {
+    type: DataTypes.FLOAT,
     allowNull: true,
   },
-
-  // Stav zakázky
-  status: {
-    type: DataTypes.STRING, // Stav zakázky: Rozpracováno, Dokončeno, Čeká na schválení
+  totalMaterialCost: {
+    type: DataTypes.FLOAT,
     allowNull: true,
   },
+  // Vzdálenost a čas z mapy
+  travelDistance: {
+    type: DataTypes.FLOAT,
+    allowNull: true,
+  },
+  travelDuration: {
+    type: DataTypes.FLOAT,
+    allowNull: true,
+  },
+  // Poznámky
   notes: {
-    type: DataTypes.TEXT, // Další poznámky
+    type: DataTypes.TEXT,
     allowNull: true,
   },
-
-  // Elektronický podpis
-  technicianSignature: {
-    type: DataTypes.STRING, // Uloží cestu k souboru s podpisem
+  // Stav reportu
+  status: {
+    type: DataTypes.STRING,
     allowNull: true,
+    defaultValue: 'Rozpracováno',
   },
-
-
-  opCode: {
-    type: DataTypes.STRING, // OP bude jedinečné pro report
-},
-clientId: {
-    type: DataTypes.INTEGER,
-    references: { model: 'Clients', key: 'id' }, // Vazba na klienta
-    allowNull: true,
-},
-
 });
 
-
-
-export default Report; // Použití export default pro správný import v ESM
+export default Report;

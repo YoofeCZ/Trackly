@@ -131,7 +131,8 @@ export const createReport = async (reportData) => {
     const response = await axios.post(`${API_URL}/reports`, reportData);
     return response.data;
   } catch (error) {
-    console.error('Chyba při vytváření reportu:', error);
+    console.error("Chyba v odpovědi backendu:", error.response?.data || error.message);
+
     throw error;
   }
 };
@@ -244,16 +245,16 @@ export const addWarehouseItem = async (item) => {
 };
 
 
-// Aktualizace materiálu
 export const updateWarehouseItem = async (id, item) => {
   try {
-    const response = await axios.put(`${API_URL}/warehouse/${id}`, item);
+    const response = await axios.put(`http://localhost:5000/api/warehouse/${id}`, item);
     return response.data;
   } catch (error) {
-    console.error('Chyba při aktualizaci materiálu:', error);
+    console.error("Chyba při aktualizaci materiálu:", error);
     throw error;
   }
 };
+
 
 // Smazání materiálu
 export const deleteWarehouseItem = async (id) => {
