@@ -2,9 +2,8 @@ import { DataTypes } from 'sequelize';
 import sequelize from '../database.js';
 
 const Report = sequelize.define('Report', {
-  // Datum reportu
   date: {
-    type: DataTypes.DATE,
+    type: DataTypes.DATEONLY,
     allowNull: false,
   },
   // Popis reportu
@@ -41,15 +40,6 @@ const Report = sequelize.define('Report', {
         }
       },
     },
-  },
-  // Časová osa
-  departureTime: {
-    type: DataTypes.DATE,
-    allowNull: true,
-  },
-  returnTime: {
-    type: DataTypes.DATE,
-    allowNull: true,
   },
   // Použité materiály
   materialUsed: {

@@ -1,3 +1,4 @@
+//Frontend
 import React, { useState, useEffect } from "react";
 import { Form, Modal, Input, DatePicker, Select, Button, message, Card, Tabs, Table, InputNumber } from "antd";
 import { createReport, getClients } from "../services/api";
@@ -8,6 +9,9 @@ import { useCallback } from "react";
 import { updateWarehouseItem } from '../services/api';
 import { getTechnicians } from '../services/api';
 import dayjs from "dayjs";
+import utc from "dayjs/plugin/utc";
+import moment from 'moment';
+dayjs.extend(utc);
 
 
 
@@ -32,7 +36,6 @@ const CreateReportWithMap = () => {
     
   ]);
 
-  const [selectedTechnician, setSelectedTechnician] = useState(null);
   const [selectedReport, setSelectedReport] = useState(null);
   const [isDetailModalVisible, setIsDetailModalVisible] = useState(false);
   const [reportList, setReportList] = useState([]); // Stav pro seznam reportů
@@ -45,9 +48,7 @@ const CreateReportWithMap = () => {
   const [addressQuery, setAddressQuery] = useState("");
   const [mapCenter, setMapCenter] = useState({ lat: 49.898930200073266, lng: 18.184307767779885 });
   const [travelResult, setTravelResult] = useState(null);
-  const [arrivalTime, setArrivalTime] = useState(null); // Čas příjezdu
-const [leaveTime, setLeaveTime] = useState(null);     // Čas odjezdu
-const [workCost, setWorkCost] = useState(0);          // Náklady za práci
+const [totalWorkCost, settotalWorkCost] = useState(0);          // Náklady za práci
 const hourlyRate = 1500;    
 // Nové stavy pro správu materiálů
 const [materials, setMaterials] = useState([]); // Skladové materiály
@@ -287,36 +288,33 @@ const handleCustomMaterialChange = (record, field, value) => {
 
 
 
-const calculateWorkCost = useCallback(() => {
-  const { departureTime, returnTime } = form.getFieldsValue(["departureTime", "returnTime"]);
+const calculateTotalWorkCost = useCallback(() => {
+  const { arrivalTime, leaveTime } = form.getFieldsValue(["arrivalTime", "leaveTime"]);
 
-  console.log("Departure Time (raw):", departureTime);
-  console.log("Return Time (raw):", returnTime);
+  if (arrivalTime && leaveTime) {
+    const arrival = dayjs(arrivalTime);
+    const leave = dayjs(leaveTime);
 
-  if (departureTime && returnTime) {
-    const depTime = dayjs(departureTime);
-    const retTime = dayjs(returnTime);
-
-    if (depTime.isValid() && retTime.isValid()) {
-      const durationInMinutes = retTime.diff(depTime, "minute");
-      console.log("Duration in minutes:", durationInMinutes);
-
-      if (durationInMinutes > 0) {
-        const cost = (durationInMinutes / 60) * hourlyRate;
-        setWorkCost(cost);
-        return;
-      }
+    if (arrival.isValid() && leave.isValid() && leave.isAfter(arrival)) {
+      const durationInMinutes = leave.diff(arrival, "minute");
+      const cost = (durationInMinutes / 60) * hourlyRate; // Výpočet nákladů
+      settotalWorkCost(cost); // Nastavte vypočtenou hodnotu do stavu
+      return;
     }
   }
 
-  setWorkCost(0);
+  settotalWorkCost(0); // Pokud časy nejsou validní, nastaví 0
 }, [form, hourlyRate]);
 
 
 
 
+
+
+
+
   
-// Toto musí být pod calculateWorkCost
+// Toto musí být pod calculatetotalWorkCost
 
 
 
@@ -468,202 +466,131 @@ useEffect(() => {
   };
   
   
+
   const handleSubmit = async (values) => {
     try {
-          // Nastavení výchozích hodnot pro časy
-    values.departureTime = values.departureTime || dayjs();
-    values.returnTime = values.returnTime || dayjs();
-    values.arrivalTime = values.arrivalTime || dayjs();
-    values.leaveTime = values.leaveTime || dayjs();
-      console.log("Odesílaná data:", values); // Logování dat
-      console.log("Travel result in handleSubmit:", travelResult);
-  
-      // Validace povinných polí
-      if (!values.reportDate) {
-        message.error("Datum reportu je povinné.");
-        return;
-      }
-  
-      const clientFieldName = `clientId_${values.reportIndex}`;
-      const clientId = values[clientFieldName] || values[`id_${values.reportIndex}`]; // Ověří obě varianty
-  
-      // Validace klienta
-      if (!clientId) {
-        message.error("Je nutné vybrat klienta.");
-        return;
-      }
-  
-      // Validace technika
-      if (!values.technicianId) {
-        message.error("Je nutné vybrat technika.");
-        return;
-      }
-  
-      // Najděte detaily technika
-      const technicianId = values.technicianId;
+      
+        // Validace povinných polí
+        if (!values.reportDate) {
+            message.error("Datum reportu je povinné.");
+            return;
+        }
 
-      if (!technicians.find((tech) => tech.id === technicianId)) {
-        message.error("Vybraný technik neexistuje.");
-        return;
-      }
-      
-  
-      // Validace OP kódu
-      if (!values.opCode) {
-        message.error("OP kód je povinný.");
-        return;
-      }
-      
-      
-    
-  
-      // Validace časů odjezdu a návratu
-      if (!values.departureTime || !values.returnTime) {
-        message.error("Časy příjezdu a odjezdu musí být vyplněny.");
-        return;
-      }
-  
-      if (!values.departureTime.isValid() || !values.returnTime.isValid()) {
-        message.error("Časy příjezdu a odjezdu mají neplatný formát.");
-        return;
-      }
-      if (!values.departureTime || !values.returnTime || !values.arrivalTime || !values.leaveTime) {
-        message.error("Všechny časové údaje musí být vyplněny.");
-        console.log("Neplatné hodnoty časů:", {
-            departureTime: values.departureTime,
-            returnTime: values.returnTime,
-            arrivalTime: values.arrivalTime,
-            leaveTime: values.leaveTime,
-        });
-        return;
-    }
-    
-    // Ověření, že časová data jsou platná pomocí Day.js
-    if (!dayjs(values.departureTime).isValid() || !dayjs(values.returnTime).isValid() || 
-        !dayjs(values.arrivalTime).isValid() || !dayjs(values.leaveTime).isValid()) {
-        message.error("Časové údaje mají neplatný formát.");
-        console.log("Neplatný formát časů:", {
-            departureTime: values.departureTime,
-            returnTime: values.returnTime,
-            arrivalTime: values.arrivalTime,
-            leaveTime: values.leaveTime,
-        });
-        return;
-    }
-  
-      // Výpočet nákladů na práci
-      let workCost = 0;
-      jobs.forEach((job) => {
-        if (job.arrivalTime && job.leaveTime) {
-          const arrival = new Date(job.arrivalTime);
-          const leave = new Date(job.leaveTime);
-          const durationInMinutes = (leave - arrival) / (1000 * 60); // Rozdíl v minutách
-          workCost += (durationInMinutes / 60) * hourlyRate; // Převod na hodiny a výpočet ceny
+        const clientFieldName = `clientId_${values.reportIndex}`;
+        const clientId = values[clientFieldName] || values[`id_${values.reportIndex}`];
+
+        if (!clientId) {
+            message.error("Je nutné vybrat klienta.");
+            return;
         }
-      });
-  
-      // Výpočet cestovních nákladů
-      let travelCostValue = 0;
-      if (travelResult) {
-        const { distance, duration } = travelResult;
-        travelCostValue += distance * 8; // 8 Kč za kilometr
-        travelCostValue += (duration / 60) * 100; // 100 Kč za hodinu na cestě
-      }
-      setTravelCost(travelCostValue);
-  
-      // Použité skladové materiály
-      const usedMaterials = materials
-        .filter((material) => material.usedQuantity > 0)
-        .map((material) => ({
-          id: material.id,
-          name: material.name,
-          usedQuantity: material.usedQuantity,
-          remainingQuantity: material.quantity - material.usedQuantity, // Zbývající množství
-        }));
-  
-      // Vlastní materiály
-      const customUsedMaterials = customMaterials
-        .filter((material) => material.quantity > 0)
-        .map((material) => ({
-          name: material.name,
-          quantity: material.quantity,
-          price: material.price,
-          chargeCustomer: material.chargeCustomer,
-        }));
-  
-      const totalMaterialCost = chargedCost + unchargedCost;
-  
-      // Přesné detaily klienta
-      const clientDetails = {
-        id: selectedClient?.id,
-        name: selectedClient?.name,
-        address: selectedClient?.address,
-        opCode: selectedClient?.opCode,
-      };
-  
-      // Data pro odeslání reportu
-      const reportData = {
-        description: values.description || "", // Přidáme popis práce
-        clientId: clientId, // Použijeme dynamicky získaný clientId
-        date: values.reportDate?.format("YYYY-MM-DD"), // Backend očekává "date"
-        technicianId: values.technicianId, // Technik
-        opCode: values.opCode, // OP kód
-        departureTime: values.departureTime?.toISOString(),
-        returnTime: values.returnTime?.toISOString(),
-        arrivalTime: values.arrivalTime?.toISOString(), // Přidání chybějící hodnoty
-        leaveTime: values.leaveTime?.toISOString(),
-        materialUsed: {
-          warehouse: usedMaterials,
-          custom: customUsedMaterials,
-        },
-        totalWorkCost: parseFloat(workCost.toFixed(2)), // Náklady na práci
-        totalTravelCost: parseFloat(travelCostValue.toFixed(2)), // Cestovní náklady
-        totalMaterialCost: parseFloat(totalMaterialCost.toFixed(2)), // Náklady na materiál
-        travelDistance: parseFloat(travelResult?.distance.toFixed(2)), // Vzdálenost
-        travelDuration: parseFloat(travelResult?.duration.toFixed(1)), // Doba cesty
-      };
-  
-      console.log("Data odeslána na backend:", reportData);
-  
-      // Pokud klient nemá OP, přidělíme nové OP
-      if (selectedClient && !selectedClient.opCode && values.opCode) {
-        try {
-            await superagent
-                .post(`http://localhost:5000/api/clients/${selectedClient.id}/assign-op`)
-                .send({ opCode: values.opCode });
-            console.log('OP kód byl úspěšně přiřazen.');
-        } catch (error) {
-            console.error('Chyba při přiřazení OP kódu:', error.response?.body || error.message);
-            message.error('Nepodařilo se přiřadit OP kód klientovi.');
+
+        if (!values.technicianId) {
+            message.error("Je nutné vybrat technika.");
+            return;
         }
-    }
-    
-  
-      // Odeslání reportu
-      await createReport(reportData);
-      message.success("Report byl úspěšně vytvořen!");
-  
-      // Reset formuláře a stavů
-      form.resetFields();
-      setSelectedClient(null);
-      setJobs([
-        {
-          description: "",
-          materials: "",
-          clientId: null,
-          address: "",
-          arrivalTime: null,
-          leaveTime: null,
-          travelTimeToNext: null,
-        },
-      ]);
-      setMaterials([]);
-      setCustomMaterials([]);
+
+        if (!technicians.find((tech) => tech.id === values.technicianId)) {
+            message.error("Vybraný technik neexistuje.");
+            return;
+        }
+
+        if (!values.opCode) {
+            message.error("OP kód je povinný.");
+            return;
+        }
+
+
+
+        // Výpočet cestovních nákladů
+        let travelCostValue = 0;
+        if (travelResult) {
+            const { distance, duration } = travelResult;
+            travelCostValue = distance * 8 + (duration / 60) * 100; // 8 Kč/km a 100 Kč/hod
+        }
+        setTravelCost(travelCostValue);
+
+        // Zpracování materiálů
+        const usedMaterials = materials
+            .filter((material) => material.usedQuantity > 0)
+            .map((material) => ({
+                id: material.id,
+                name: material.name,
+                usedQuantity: material.usedQuantity,
+                remainingQuantity: material.quantity - material.usedQuantity,
+            }));
+
+        const customUsedMaterials = customMaterials
+            .filter((material) => material.quantity > 0)
+            .map((material) => ({
+                name: material.name,
+                quantity: material.quantity,
+                price: material.price,
+                chargeCustomer: material.chargeCustomer,
+            }));
+
+        const totalMaterialCost = chargedCost + unchargedCost;
+
+        // Sestavení dat reportu
+        const reportData = {
+            description: values.description || "",
+            clientId: clientId,
+            date: values.reportDate?.format("YYYY-MM-DD"), // Převod na správný formát
+            technicianId: values.technicianId,
+            opCode: values.opCode,
+            materials: Array.isArray(materials) ? materials : [], // Ověření, že materials je pole
+            materialUsed: {
+                warehouse: usedMaterials,
+                custom: customUsedMaterials,
+            },
+            totalWorkCost: parseFloat(totalWorkCost.toFixed(2)), // Přidání ceny za práci
+            totalTravelCost: parseFloat(travelCostValue.toFixed(2)),
+            totalMaterialCost: parseFloat(totalMaterialCost.toFixed(2)),
+            travelDistance: parseFloat(travelResult?.distance.toFixed(2)),
+            travelDuration: parseFloat(travelResult?.duration.toFixed(1)),
+        };
+
+        console.log("Data odeslána na backend:", reportData);
+
+        // Přiřazení OP kódu, pokud klient nemá
+        if (selectedClient && !selectedClient.opCode && values.opCode) {
+            try {
+                await superagent
+                    .post(`http://localhost:5000/api/clients/${selectedClient.id}/assign-op`)
+                    .send({ opCode: values.opCode });
+                console.log("OP kód byl úspěšně přiřazen.");
+            } catch (error) {
+                console.error("Chyba při přiřazení OP kódu:", error.response?.body || error.message);
+                message.error("Nepodařilo se přiřadit OP kód klientovi.");
+            }
+        }
+
+        // Odeslání reportu
+        await createReport(reportData);
+        message.success("Report byl úspěšně vytvořen!");
+
+        // Reset formuláře a stavů
+        form.resetFields();
+        setSelectedClient(null);
+        setJobs([
+            {
+                description: "",
+                materials: "",
+                clientId: null,
+                address: "",
+                arrivalTime: null,
+                leaveTime: null,
+                travelTimeToNext: null,
+            },
+        ]);
+        setMaterials([]);
+        setCustomMaterials([]);
     } catch (error) {
-      console.error("Chyba při vytváření reportu:", error.response?.data || error.message);
-      message.error(`Chyba při vytváření reportu: ${error.response?.data?.message || error.message}`);
+        console.error("Chyba při vytváření reportu:", error.response?.data || error.message);
+        message.error(`Chyba při vytváření reportu: ${error.response?.data?.message || error.message}`);
     }
-  };
+};
+
+
   
 
 
@@ -853,7 +780,7 @@ return (
               <Form
                 form={form}
                 layout="vertical"
-                onValuesChange={() => calculateWorkCost()}
+                onValuesChange={() => calculateTotalWorkCost()}
                 onFinish={(values) =>
                   handleSubmit({ ...values, reportIndex: index + 1 })
                 }
@@ -862,10 +789,11 @@ return (
                 <Form.Item
   name="reportDate"
   label="Datum reportu"
-  rules={[{ required: true, message: "Zadejte datum reportu" }]}
+  rules={[{ required: true, message: "Datum reportu je povinné." }]}
 >
   <DatePicker format="YYYY-MM-DD" />
 </Form.Item>
+
 
 
                 {/* Výpočet trasy */}
@@ -952,24 +880,35 @@ return (
 
                 {/* Další formulářové položky */}
                 <Form.Item
-  name="departureTime"
+  name="arrivalTime"
   label="Čas příjezdu na zakázku"
   rules={[{ required: true, message: "Čas příjezdu je povinný." }]}
 >
-  <DatePicker showTime format="YYYY-MM-DD HH:mm" />
+  <DatePicker
+    showTime
+    format="YYYY-MM-DD HH:mm"
+    onChange={calculateTotalWorkCost} // Přepočet při změně
+  />
 </Form.Item>
 
 <Form.Item
-  name="returnTime"
+  name="leaveTime"
   label="Čas odjezdu ze zakázky"
   rules={[{ required: true, message: "Čas odjezdu je povinný." }]}
 >
-  <DatePicker showTime format="YYYY-MM-DD HH:mm" />
+  <DatePicker
+    showTime
+    format="YYYY-MM-DD HH:mm"
+    onChange={calculateTotalWorkCost} // Přepočet při změně
+  />
 </Form.Item>
 
 
+
+
+
   <Form.Item label="Cena za práci">
-    <p>{workCost.toFixed(2)} Kč</p>
+    <p>{totalWorkCost.toFixed(2)} Kč</p>
   </Form.Item>
 
 <Form.Item label="Cestovní náklady">

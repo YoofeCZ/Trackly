@@ -131,6 +131,20 @@ export const getReports = async () => {
   }
 };
 
+export const calculateCosts = (materials = [], hourlyRate, travelCost) => {
+  if (!Array.isArray(materials)) {
+      throw new Error("Materials must be an array");
+  }
+
+  const materialCost = materials.reduce((sum, material) => {
+      const cost = material.usedQuantity * material.price;
+      return sum + (material.chargeCustomer ? cost : 0);
+  }, 0);
+
+  return materialCost + hourlyRate + travelCost;
+};
+
+
 // Funkce pro vytvoření nového reportu
 export const createReport = async (reportData) => {
   try {

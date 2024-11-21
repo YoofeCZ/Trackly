@@ -1,11 +1,11 @@
+//backend
 import express from 'express';
 import multer from 'multer';
 import nodemailer from 'nodemailer';
 import path from 'path';
 import fs from 'fs';
 import { generateWordDocument } from '../services/docxService.js';
-import { calculateCosts, calculateTotalTime } from '../services/costService.js';
-import { calculateTravelTime } from '../services/directionsService.js';
+import { calculateCosts } from '../services/costService.js';
 import Report from '../models/Report.js';
 import Technician from '../models/Technician.js';
 import Client from '../models/Client.js';
@@ -15,67 +15,54 @@ import Version from '../models/Version.js';
 const router = express.Router();
 const upload = multer({ dest: 'uploads/' });
 // 1. Vytvoření reportu
-// 1. Vytvoření reportu
 router.post('/', async (req, res) => {
     try {
-        console.log("Přijatá data na backendu:", req.body); // Logování přijatých dat
-        console.log("Přijatá data z frontend:", req.body); // Logování přijatých dat
+        console.log("Přijatá data na backendu:", req.body);
+
         const {
             opCode,
             description,
-            departureTime,
-            arrivalTime,
-            leaveTime,
-            returnTime,
-            materials,
+            materials = [],
             hourlyRate,
             travelCost,
+            totalWorkCost, // Zahrnutí hodnoty do databáze
             technicianId,
             clientId,
-            notes,
-            status,
         } = req.body;
 
-                // Validace časů
-                if (!departureTime || !arrivalTime || !leaveTime || !returnTime) {
-                    return res.status(400).json({ 
-                        message: "Chyba při vytváření reportu", 
-                        error: "Čas odjezdu, odjezdu ze zakázky nebo návratu není platný." 
-                    });
-                }
-        
-                // Ověř, že časy jsou validní instance Date
-                if (isNaN(new Date(departureTime).getTime()) || isNaN(new Date(arrivalTime).getTime()) ||
-                    isNaN(new Date(leaveTime).getTime()) || isNaN(new Date(returnTime).getTime())) {
-                    return res.status(400).json({ 
-                        message: "Chyba při vytváření reportu", 
-                        error: "Čas odjezdu, odjezdu ze zakázky nebo návratu má neplatný formát." 
-                    });
-                }
+        if (typeof totalWorkCost !== 'number' || totalWorkCost < 0) {
+            return res.status(400).json({
+              message: "Chyba při vytváření reportu",
+              error: "Celková cena za práci musí být kladné číslo.",
+            });
+          }
 
-        // Vypočítané hodnoty
-        const travelTime = await calculateTravelTime(departureTime, arrivalTime);
-        const totalTime = calculateTotalTime(departureTime, leaveTime, returnTime);
-        const totalCosts = calculateCosts(materials, hourlyRate, travelCost, totalTime);
 
-        // Vytvoření reportu
+          const { date } = req.body;
+
+          if (!date) {
+            console.error("Datum reportu chybí v přijatých datech:", req.body);
+            return res.status(400).json({
+              message: "Chyba při vytváření reportu",
+              error: "Datum reportu je povinné.",
+            });
+          }
+
+        // Výpočet nákladů
+        const totalCosts = calculateCosts(materials, hourlyRate, travelCost);
+
+        console.log("Celkové náklady:", totalCosts);
+
         const report = await Report.create({
             opCode,
             description,
-            departureTime, // Zkontrolujeme, zda přichází správný timestamp
-            arrivalTime,
-            leaveTime,
-            returnTime,
-            transitionTime: travelTime, // Vypočítané časy
             materials,
             hourlyRate,
             travelCost,
-            totalTime,
             totalCosts,
+            totalWorkCost, // Zahrnutí hodnoty do databáze
             technicianId,
             clientId,
-            notes,
-            status,
         });
 
         // Aktualizace klienta (přiřazení OP kódu, pokud není přiřazený)
@@ -87,11 +74,13 @@ router.post('/', async (req, res) => {
             }
         }
 
-        res.status(201).json(report); // Vracíme přímo vytvořený report
+        res.status(201).json(report);
     } catch (error) {
+        console.error("Chyba na backendu:", error);
         res.status(400).json({ message: 'Chyba při vytváření reportu', error: error.message });
     }
 });
+
 
 
 // 2. Získání všech reportů s filtrováním
