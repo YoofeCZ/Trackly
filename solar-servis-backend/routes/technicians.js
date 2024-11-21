@@ -17,12 +17,16 @@ router.post('/', async (req, res) => {
 // Získání všech techniků
 router.get('/', async (req, res) => {
   try {
-    const technicians = await Technician.findAll();
+    const technicians = await Technician.findAll({
+      attributes: ['id', 'name', 'email', 'phone', 'address'], // Pouze potřebné atributy
+    });
     res.status(200).json(technicians);
   } catch (error) {
-    res.status(500).json({ message: 'Chyba při získávání techniků', error: error.message });
+    console.error('Chyba při načítání techniků:', error);
+    res.status(500).json({ message: 'Chyba při načítání techniků' });
   }
 });
+
 
 // Aktualizace technika
 router.put('/:id', async (req, res) => {

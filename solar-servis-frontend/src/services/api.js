@@ -5,14 +5,10 @@ const API_URL = 'http://localhost:5000/api'; // URL backendu
 
 // Funkce pro získání všech techniků
 export const getTechnicians = async () => {
-  try {
-    const response = await axios.get(`${API_URL}/technicians`);
-    return response.data;
-  } catch (error) {
-    console.error('Chyba při získávání techniků:', error);
-    throw error;
-  }
+  const response = await fetch('http://localhost:5000/api/technicians');
+  return response.json();
 };
+
 // Funkce pro nahrání souboru ke klientovi
 export const uploadClientFile = async (clientId, formData) => { // Přijímáme formData jako parametr
   try {
@@ -42,6 +38,16 @@ export const createClientFolder = async (clientId, folderName) => {
 };
 
 
+// Funkce pro přiřazení OP kódu klientovi
+export const assignClientOpCode = async (clientId, opCode) => {
+  try {
+    const response = await axios.post(`${API_URL}/clients/${clientId}/assign-op`, { opCode });
+    return response.data;
+  } catch (error) {
+    console.error('Chyba při přiřazení OP kódu klientovi:', error.response?.data || error.message);
+    throw error;
+  }
+};
 
 
 // Funkce pro vytvoření nového technika

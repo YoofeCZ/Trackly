@@ -72,15 +72,19 @@ router.post('/', async (req, res) => {
 
 
 // Získání všech klientů
+
 router.get('/', async (req, res) => {
-  try {
-    const clients = await Client.findAll();
-    console.log(clients); // Zkontrolujte, zda opCodes jsou zahrnuty
-    res.status(200).json(clients);
-  } catch (error) {
-    res.status(500).json({ message: 'Chyba při získávání klientů', error: error.message });
-  }
+    try {
+        const clients = await Client.findAll({
+            attributes: ['id', 'name', 'email', 'phone', 'address'],
+        });
+        res.json(clients);
+    } catch (error) {
+        console.error('Chyba při načítání klientů:', error);
+        res.status(500).json({ error: 'Chyba při načítání klientů.' });
+    }
 });
+
 
 // Přidání souboru ke klientovi
 router.post('/:id/files', upload.single('file'), async (req, res) => {
@@ -210,6 +214,28 @@ router.put('/:id', async (req, res) => {
       res.status(500).json({ message: 'Chyba při aktualizaci klienta', error: error.message });
   }
 });
+
+router.post('/:id/assign-op', async (req, res) => {
+  try {
+    const clientId = req.params.id; // Získání ID klienta z parametru
+    const { opCode } = req.body; // Získání OP kódu z těla požadavku
+
+    const client = await Client.findByPk(clientId); // Vyhledání klienta podle ID
+    if (!client) {
+      return res.status(404).json({ message: 'Klient nenalezen' });
+    }
+
+    // Kontrola, zda OP kódy již existují, a přidání nového OP kódu
+    const updatedOpCodes = client.opCodes ? [...client.opCodes, opCode] : [opCode];
+    await client.update({ opCodes: updatedOpCodes });
+
+    res.status(200).json({ message: 'OP kód byl přiřazen klientovi', opCodes: updatedOpCodes });
+  } catch (error) {
+    console.error('Chyba při přiřazování OP kódu klientovi:', error);
+    res.status(500).json({ message: 'Chyba při přiřazování OP kódu klientovi', error: error.message });
+  }
+});
+
 
 
 

@@ -15,8 +15,11 @@ import Version from '../models/Version.js';
 const router = express.Router();
 const upload = multer({ dest: 'uploads/' });
 // 1. Vytvoření reportu
+// 1. Vytvoření reportu
 router.post('/', async (req, res) => {
     try {
+        console.log("Přijatá data na backendu:", req.body); // Logování přijatých dat
+        console.log("Přijatá data z frontend:", req.body); // Logování přijatých dat
         const {
             opCode,
             description,
@@ -31,53 +34,65 @@ router.post('/', async (req, res) => {
             clientId,
             notes,
             status,
-            jobs, // Pole pro více zakázek
         } = req.body;
 
-        const reports = [];
-
-        // Podpora více zakázek
-        for (const job of jobs || [{ description, materials, clientId }]) {
-            const travelTime = await calculateTravelTime(departureTime, arrivalTime);
-            const totalTime = calculateTotalTime(departureTime, leaveTime, returnTime);
-            const totalCosts = calculateCosts(job.materials, hourlyRate, travelCost, totalTime);
-
-            const report = await Report.create({
-                opCode,
-                description: job.description,
-                departureTime,
-                arrivalTime,
-                leaveTime,
-                returnTime,
-                transitionTime: travelTime,
-                materials: job.materials,
-                hourlyRate,
-                travelCost,
-                totalTime,
-                totalCosts,
-                technicianId,
-                clientId: job.clientId,
-                notes,
-                status,
-            });
-
-            reports.push(report);
-
-            // Aktualizace klienta
-            if (clientId && opCode) {
-                const client = await Client.findByPk(clientId);
-                if (client && (!client.opCodes || !client.opCodes.includes(opCode))) {
-                    const updatedOpCodes = client.opCodes ? [...client.opCodes, opCode] : [opCode];
-                    await client.update({ opCodes: updatedOpCodes });
+                // Validace časů
+                if (!departureTime || !arrivalTime || !leaveTime || !returnTime) {
+                    return res.status(400).json({ 
+                        message: "Chyba při vytváření reportu", 
+                        error: "Čas odjezdu, odjezdu ze zakázky nebo návratu není platný." 
+                    });
                 }
+        
+                // Ověř, že časy jsou validní instance Date
+                if (isNaN(new Date(departureTime).getTime()) || isNaN(new Date(arrivalTime).getTime()) ||
+                    isNaN(new Date(leaveTime).getTime()) || isNaN(new Date(returnTime).getTime())) {
+                    return res.status(400).json({ 
+                        message: "Chyba při vytváření reportu", 
+                        error: "Čas odjezdu, odjezdu ze zakázky nebo návratu má neplatný formát." 
+                    });
+                }
+
+        // Vypočítané hodnoty
+        const travelTime = await calculateTravelTime(departureTime, arrivalTime);
+        const totalTime = calculateTotalTime(departureTime, leaveTime, returnTime);
+        const totalCosts = calculateCosts(materials, hourlyRate, travelCost, totalTime);
+
+        // Vytvoření reportu
+        const report = await Report.create({
+            opCode,
+            description,
+            departureTime, // Zkontrolujeme, zda přichází správný timestamp
+            arrivalTime,
+            leaveTime,
+            returnTime,
+            transitionTime: travelTime, // Vypočítané časy
+            materials,
+            hourlyRate,
+            travelCost,
+            totalTime,
+            totalCosts,
+            technicianId,
+            clientId,
+            notes,
+            status,
+        });
+
+        // Aktualizace klienta (přiřazení OP kódu, pokud není přiřazený)
+        if (clientId && opCode) {
+            const client = await Client.findByPk(clientId);
+            if (client && (!client.opCodes || !client.opCodes.includes(opCode))) {
+                const updatedOpCodes = client.opCodes ? [...client.opCodes, opCode] : [opCode];
+                await client.update({ opCodes: updatedOpCodes });
             }
         }
 
-        res.status(201).json(reports);
+        res.status(201).json(report); // Vracíme přímo vytvořený report
     } catch (error) {
         res.status(400).json({ message: 'Chyba při vytváření reportu', error: error.message });
     }
 });
+
 
 // 2. Získání všech reportů s filtrováním
 router.get('/', async (req, res) => {
@@ -264,5 +279,34 @@ router.post('/:id/send-email', async (req, res) => {
         res.status(500).json({ message: 'Chyba při odesílání emailu' });
     }
 });
+
+// Přiřazení OP kódu ke klientovi
+router.post('/clients/:clientId/assign-op', async (req, res) => {
+    try {
+        const { clientId } = req.params; // ID klienta z URL
+        const { opCode } = req.body; // OP kód z těla požadavku
+
+        // Ověření, že OP kód byl poskytnut
+        if (!opCode) {
+            return res.status(400).json({ message: 'OP kód je povinný' });
+        }
+
+        // Najdi klienta podle ID
+        const client = await Client.findByPk(clientId);
+        if (!client) {
+            return res.status(404).json({ message: 'Klient nenalezen' });
+        }
+
+        // Aktualizace OP kódů klienta
+        const updatedOpCodes = client.opCodes ? [...client.opCodes, opCode] : [opCode];
+        await client.update({ opCodes: updatedOpCodes });
+
+        res.status(200).json({ message: 'OP kód byl úspěšně přiřazen', opCodes: updatedOpCodes });
+    } catch (error) {
+        console.error('Chyba při přiřazování OP kódu:', error);
+        res.status(500).json({ message: 'Chyba při přiřazování OP kódu', error: error.message });
+    }
+});
+
 
 export default router;
