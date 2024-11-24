@@ -16,10 +16,7 @@ export async function generateWordDocument(report) {
 
     report.tasks.forEach((task, index) => {
         sections.push(new Paragraph({ text: `Task ${index + 1}:` }));
-        sections.push(new Paragraph({ text: `Description: ${task.description}` }));
-        sections.push(new Paragraph({ text: `Departure: ${task.departureTime}` }));
-        sections.push(new Paragraph({ text: `Arrival: ${task.arrivalTime}` }));
-        sections.push(new Paragraph({ text: `Materials Used:` }));
+
         task.materials.forEach((material) => {
             sections.push(
                 new Paragraph({

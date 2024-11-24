@@ -342,23 +342,49 @@ const handleCloseDetails = () => {
         linebreaks: true,
       });
   
-      // Definovat data pro šablonu
+      // Definování dat pro šablonu
       const data = {
-        name: report.client?.name || "Neznámý klient",
+        // Informace o klientovi
+        clientName: report.client?.name || "Neznámý klient",
+        clientAddress: report.client?.address || "Adresa není k dispozici", // Tady je přidána adresa
+        clientEmail: report.client?.email || "Email není k dispozici",
+        clientPhone: report.client?.phone || "Telefon není k dispozici",
+        
+        // Informace o technikovi
+        technicianName: report.technician?.name || "Neznámý technik",
+  
+        // Report data
         date: dayjs(report.date).format("DD.MM.YYYY"),
         description: report.description || "Popis není k dispozici",
+        opCode: report.opCode || "Není přiřazen",
+        
+        // Použité materiály (pokud existují)
+        materials: report.materials?.map(material => ({
+          name: material.name || "Neznámý materiál",
+          quantity: material.quantity || 0,
+          price: material.price || 0,
+        })) || [],
+        
+        // Náklady
+        totalWorkCost: report.totalWorkCost || 0,
+        totalTravelCost: report.totalTravelCost || 0,
+        totalMaterialCost: report.totalMaterialCost || 0,
+        totalCost: (report.totalWorkCost || 0) + (report.totalTravelCost || 0) + (report.totalMaterialCost || 0),
+  
+        // Další užitečné informace
+        reportId: report.id || "neznámý",
       };
   
-      // Nastavit data do šablony
+      // Nastavení dat do šablony
       doc.setData(data);
   
-      // Renderovat dokument
+      // Renderování dokumentu
       doc.render();
   
-      // Získat obsah jako blob
+      // Získání obsahu jako arraybuffer
       const renderedDocument = doc.getZip().generate({ type: "arraybuffer" });
   
-      // Převést pomocí Mammoth na HTML
+      // Převést pomocí Mammoth na HTML (pro zobrazení v okně)
       const htmlResult = await mammoth.convertToHtml({ arrayBuffer: renderedDocument });
   
       // Zobrazit výsledek v modálním okně
@@ -372,7 +398,7 @@ const handleCloseDetails = () => {
       message.error("Nepodařilo se zobrazit dokument.");
     }
   };
-
+  
   const handleDownloadDocument = async (report) => {
     try {
       // Načíst šablonu dokumentu
@@ -388,17 +414,37 @@ const handleCloseDetails = () => {
         linebreaks: true,
       });
   
-      // Definice dat, která se vloží do šablony
+      // Definice dat pro šablonu
       const data = {
-        name: report.client?.name || "Neznámý klient",
+        clientName: report.client?.name || "Neznámý klient",
+        clientAddress: report.client?.address || "Adresa není k dispozici", // Přidání adresy klienta
+        clientEmail: report.client?.email || "Email není k dispozici",
+        clientPhone: report.client?.phone || "Telefon není k dispozici",
+        
+        technicianName: report.technician?.name || "Neznámý technik",
+        
         date: dayjs(report.date).format("DD.MM.YYYY"),
         description: report.description || "Popis není k dispozici",
+        opCode: report.opCode || "Není přiřazen",
+  
+        materials: report.materials?.map(material => ({
+          name: material.name || "Neznámý materiál",
+          quantity: material.quantity || 0,
+          price: material.price || 0,
+        })) || [],
+  
+        totalWorkCost: report.totalWorkCost || 0,
+        totalTravelCost: report.totalTravelCost || 0,
+        totalMaterialCost: report.totalMaterialCost || 0,
+        totalCost: (report.totalWorkCost || 0) + (report.totalTravelCost || 0) + (report.totalMaterialCost || 0),
+  
+        reportId: report.id || "neznámý",
       };
   
       // Nastavení dat do šablony
       doc.setData(data);
   
-      // Vykreslení šablony s daty
+      // Renderování šablony
       doc.render();
   
       // Generování dokumentu ve formátu blob
@@ -417,6 +463,8 @@ const handleCloseDetails = () => {
       message.error("Nepodařilo se stáhnout dokument.");
     }
   };
+  
+  
   
   
   
