@@ -1,17 +1,20 @@
 import { DataTypes } from 'sequelize';
 import sequelize from '../database.js';
+import Client from './Client.js';  // Importujte Client před použitím v asociaci
 
 const Report = sequelize.define('Report', {
   date: {
-    type: DataTypes.DATEONLY,
+    type: DataTypes.DATE,
     allowNull: false,
+    validate: {
+      notEmpty: true,
+      isDate: true,
+    },
   },
-  // Popis reportu
   description: {
     type: DataTypes.TEXT,
-    allowNull: true, // Popis není přímo odesílán v handleSubmit, proto nastaveno jako nepovinné
+    allowNull: true,
   },
-  // Technik
   technicianId: {
     type: DataTypes.INTEGER,
     allowNull: false,
@@ -20,7 +23,6 @@ const Report = sequelize.define('Report', {
       key: 'id',
     },
   },
-  // Klient
   clientId: {
     type: DataTypes.INTEGER,
     allowNull: false,
@@ -29,7 +31,6 @@ const Report = sequelize.define('Report', {
       key: 'id',
     },
   },
-  // OP kód
   opCode: {
     type: DataTypes.STRING,
     allowNull: false,
@@ -41,12 +42,10 @@ const Report = sequelize.define('Report', {
       },
     },
   },
-  // Použité materiály
   materialUsed: {
-    type: DataTypes.JSONB, // Kombinace skladových a vlastních materiálů
+    type: DataTypes.JSONB,
     allowNull: true,
   },
-  // Náklady
   totalWorkCost: {
     type: DataTypes.FLOAT,
     allowNull: true,
@@ -58,26 +57,6 @@ const Report = sequelize.define('Report', {
   totalMaterialCost: {
     type: DataTypes.FLOAT,
     allowNull: true,
-  },
-  // Vzdálenost a čas z mapy
-  travelDistance: {
-    type: DataTypes.FLOAT,
-    allowNull: true,
-  },
-  travelDuration: {
-    type: DataTypes.FLOAT,
-    allowNull: true,
-  },
-  // Poznámky
-  notes: {
-    type: DataTypes.TEXT,
-    allowNull: true,
-  },
-  // Stav reportu
-  status: {
-    type: DataTypes.STRING,
-    allowNull: true,
-    defaultValue: 'Rozpracováno',
   },
 });
 

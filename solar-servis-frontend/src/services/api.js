@@ -1,5 +1,6 @@
 //services/api.js
 import axios from 'axios';
+import superagent from "superagent";
 
 const API_URL = 'http://localhost:5000/api'; // URL backendu
 
@@ -10,14 +11,13 @@ export const getTechnicians = async () => {
 };
 
 // Funkce pro nahrání souboru ke klientovi
-export const uploadClientFile = async (clientId, formData) => { // Přijímáme formData jako parametr
+export const uploadClientFile = async (clientId, formData) => {
   try {
     const response = await axios.post(`${API_URL}/clients/${clientId}/files`, formData, {
       headers: {
         'Content-Type': 'multipart/form-data', // Správné nastavení hlavičky
       },
     });
-
     return response.data;
   } catch (error) {
     console.error('Chyba při nahrávání souboru:', error);
@@ -25,17 +25,59 @@ export const uploadClientFile = async (clientId, formData) => { // Přijímáme 
   }
 };
 
+// Přihlášení uživatele
+export const loginUser = async (username, password) => {
+  try {
+    const response = await axios.post(`${API_URL}/users/login`, { username, password });
+    return response.data; // Očekáváme token
+  } catch (error) {
+    console.error('Chyba při přihlášení:', error.response?.data || error.message);
+    throw error;
+  }
+};
+
+// Vytvoření nového uživatele (pouze pro adminy)
+export const createUser = async (userData, token) => {
+  try {
+    const response = await axios.post(`${API_URL}/users/create`, userData, {
+      headers: {
+        Authorization: `Bearer ${token}`, // Tento token musí být předán správně
+      },
+    });
+    return response.data;
+  } catch (error) {
+    console.error('Chyba při vytváření uživatele:', error.response?.data || error.message);
+    throw error;
+  }
+};
+
+
+// Získání všech uživatelů (pouze pro adminy)
+export const getUsers = async (token) => {
+  try {
+    const response = await axios.get(`${API_URL}/users/all`, {
+      headers: {
+        Authorization: `Bearer ${token}`,
+      },
+    });
+    return response.data;
+  } catch (error) {
+    console.error('Chyba při získávání uživatelů:', error.response?.data || error.message);
+    throw error;
+  }
+};
 
 // Funkce pro vytvoření nové složky pro klienta
-export const createClientFolder = async (clientId, folderName) => {
+export const createClientFolder = async (clientId, folderPath) => {
   try {
-    const response = await axios.post(`${API_URL}/clients/${clientId}/folders`, { folderName });
+    const response = await axios.post(`${API_URL}/clients/${clientId}/folders`, { folderPath });
     return response.data;
   } catch (error) {
     console.error('Chyba při vytváření složky:', error);
     throw error;
   }
 };
+
 
 
 // Funkce pro přiřazení OP kódu klientovi
@@ -57,6 +99,17 @@ export const createTechnician = async (technicianData) => {
     return response.data;
   } catch (error) {
     console.error('Chyba při vytváření technika:', error);
+    throw error;
+  }
+};
+
+// Funkce pro získání reportu podle ID
+export const getReportById = async (id) => {
+  try {
+    const response = await axios.get(`http://localhost:5000/api/reports/${id}`);
+    return response.data;
+  } catch (error) {
+    console.error('Chyba při získávání reportu:', error);
     throw error;
   }
 };
@@ -265,15 +318,31 @@ export const addWarehouseItem = async (item) => {
 };
 
 
-export const updateWarehouseItem = async (id, item) => {
+// Načtení materiálů ze skladu
+export const fetchMaterialsFromWarehouse = async () => {
   try {
-    const response = await axios.put(`http://localhost:5000/api/warehouse/${id}`, item);
-    return response.data;
+      const response = await superagent.get("http://localhost:5000/api/warehouse");
+      return response.body;
   } catch (error) {
-    console.error("Chyba při aktualizaci materiálu:", error);
-    throw error;
+      console.error("Chyba při načítání materiálů ze skladu:", error);
+      throw error;
   }
 };
+
+// Funkce pro aktualizaci skladového materiálu
+// Aktualizace položky skladu
+export const updateWarehouseItem = async (id, data) => {
+  try {
+      const response = await superagent
+          .put(`http://localhost:5000/api/warehouse/${id}`)
+          .send(data);
+      return response.body;
+  } catch (error) {
+      console.error("Chyba při aktualizaci skladu:", error);
+      throw error;
+  }
+};
+
 
 
 // Smazání materiálu

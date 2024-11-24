@@ -1,464 +1,247 @@
 //Frontend
-import React, { useState, useEffect } from "react";
-import { Form, Modal, Input, DatePicker, Select, Button, message, Card, Tabs, Table, InputNumber } from "antd";
-import { createReport, getClients } from "../services/api";
-import "../css/Report.css";
+import React, { useState, useEffect, useCallback } from "react";
+import {
+  Form,
+  Modal,
+  Input,
+  DatePicker,
+  Select,
+  Button,
+  message,
+  Card,
+  Table,
+  InputNumber,
+  Tabs,
+  TimePicker,
+} from "antd";
+import { createReport, getTechnicians, getClients, fetchMaterialsFromWarehouse, updateWarehouseItem } from "../services/api";
 import { GoogleMap, LoadScriptNext, Marker, InfoWindow } from "@react-google-maps/api";
-import superagent, { report } from "superagent";
-import { useCallback } from "react";
-import { updateWarehouseItem } from '../services/api';
-import { getTechnicians } from '../services/api';
 import dayjs from "dayjs";
-import utc from "dayjs/plugin/utc";
-import moment from 'moment';
-dayjs.extend(utc);
+import superagent from "superagent";
+import { useNavigate } from 'react-router-dom'; // Přidání importu
+import { SearchOutlined } from "@ant-design/icons";
+import { generateDocument } from "../utils/generateDocument";
+import DocumentPreview from "../utils/DocumentPreview";
+import Docxtemplater from "docxtemplater";
+import mammoth from "mammoth";
+import PizZip from "pizzip"; // Přidejte tento import
 
 
 
 const GOOGLE_MAPS_API_KEY = process.env.REACT_APP_GOOGLE_MAPS_API_KEY;
 
-const CreateReportWithMap = () => {
+const ReportPage = () => {
+  const navigate = useNavigate(); // Správné umístění navigace
+  const [filteredReports, setFilteredReports] = useState([]);
+  const [searchTerm, setSearchTerm] = useState("");
   const [clients, setClients] = useState([]);
-  const [travelCost, setTravelCost] = useState(0);
-  const [form] = Form.useForm();
-  const [jobs, setJobs] = useState([
-    
-
-    {
-      description: "",
-      materials: "",
-      clientId: null,
-      address: "",
-      arrivalTime: null,
-      leaveTime: null,
-      travelTimeToNext: null,
-    },
-    
-  ]);
-
-  const [selectedReport, setSelectedReport] = useState(null);
+  const [technicians, setTechnicians] = useState([]);
+  const [reportList, setReportList] = useState([]);
+  const [loadingReports, setLoadingReports] = useState(false);
   const [isDetailModalVisible, setIsDetailModalVisible] = useState(false);
-  const [reportList, setReportList] = useState([]); // Stav pro seznam reportů
-  const [loadingReports, setLoadingReports] = useState(false); // Stav pro načítání
   const [isModalVisible, setIsModalVisible] = useState(false);
-  const [reportCount] = useState(1);
-  const [reports, setReports] = useState([]);
+  const [selectedReport, setSelectedReport] = useState(null);
+  const [materials, setMaterials] = useState([]);
+  const [customMaterials, setCustomMaterials] = useState([]);
   const [selectedPositions, setSelectedPositions] = useState({ from: null, to: null });
   const [infoWindow, setInfoWindow] = useState(null);
+  const [travelCost, setTravelCost] = useState(0);
+  const [totalWorkCost, setTotalWorkCost] = useState(0);
+  const [form] = Form.useForm();
+  const hourlyRate = 1500;
+  const [mapCenter, setMapCenter] = useState({ lat: 50.0755, lng: 14.4378 }); // Praha jako výchozí bod
   const [addressQuery, setAddressQuery] = useState("");
-  const [mapCenter, setMapCenter] = useState({ lat: 49.898930200073266, lng: 18.184307767779885 });
   const [travelResult, setTravelResult] = useState(null);
-const [totalWorkCost, settotalWorkCost] = useState(0);          // Náklady za práci
-const hourlyRate = 1500;    
-// Nové stavy pro správu materiálů
-const [materials, setMaterials] = useState([]); // Skladové materiály
-const [customMaterials, setCustomMaterials] = useState([]); // Ručně přidané materiály        
-const [chargedCost, setChargedCost] = useState(0);
-const [unchargedCost, setUnchargedCost] = useState(0);                  // Cena za hodinu práce
-// Stavy pro klienty a techniky
-const [technicians, setTechnicians] = useState([]);
-const [selectedClient, setSelectedClient] = useState(null);
-
-// Funkce pro inicializaci reportu
-// Funkce pro inicializaci reportu
+  const [selectedClient, setSelectedClient] = useState(null); // Stav pro vybraného klienta
+  const [chargedCost, setChargedCost] = useState(0); // Náklady účtované zákazníkovi
+  const [unchargedCost, setUnchargedCost] = useState(0); // Neúčtované náklady
+  const [originalReportList, setOriginalReportList] = useState([]); // Původní seznam reportů
 
 
-const fetchReports = async () => {
-  setLoadingReports(true);
-  try {
-     const response = await superagent.get("http://localhost:5000/api/reports"); // Upravit endpoint podle backendu
-     setReportList(response.body); // Uložíme seznam reportů
-  } catch (error) {
-     message.error("Chyba při načítání seznamu reportů.");
-  } finally {
-     setLoadingReports(false);
-  }
-};
 
-// Načti seznam reportů při načtení stránky
+//Fetch material
 useEffect(() => {
-  fetchReports();
+  const fetchMaterialsFromWarehouse = async () => {
+    try {
+      const response = await superagent.get("http://localhost:5000/api/warehouse");
+      setMaterials(response.body); // Načtení skladových materiálů
+    } catch (error) {
+      message.error("Chyba při načítání materiálů ze skladu.");
+    }
+  };
+
+  fetchMaterialsFromWarehouse(); // Načíst materiály při načtení komponenty
 }, []);
 
-const reportColumns = [
-  {
-     title: "Datum reportu",
-     dataIndex: "reportDate",
-     key: "reportDate",
-  },
-  {
-     title: "Klient",
-     dataIndex: "clientName", // Předpokládáme, že API vrací `clientName`
-     key: "clientName",
-  },
-  {
-     title: "Technik",
-     dataIndex: "technicianName", // Předpokládáme, že API vrací `technicianName`
-     key: "technicianName",
-  },
-  {
-     title: "Celková cena",
-     dataIndex: "totalCost",
-     key: "totalCost",
-     render: (cost) => `${cost.toFixed(2)} Kč`, // Formátování ceny
-  },
-  {
-    title: "Akce",
-    key: "action",
-    render: (_, record) => (
-       <Button type="link" onClick={() => handleViewDetails(record)}>
-          Detaily
-       </Button>
-    ),
- },
-];
-const handleViewDetails = (report) => {
-  setSelectedReport(report); // Uloží vybraný report
-  setIsDetailModalVisible(true); // Otevře modal
+
+  // Fetch clients and technicians
+  useEffect(() => {
+    const fetchInitialData = async () => {
+      try {
+        const [clientData, technicianData] = await Promise.all([getClients(), getTechnicians()]);
+        setClients(clientData);
+        setTechnicians(technicianData);
+      } catch (error) {
+        message.error("Chyba při načítání dat.");
+      }
+    };
+    fetchInitialData();
+  }, []);
+
+  const fetchReports = async () => {
+    setLoadingReports(true);
+    try {
+      const response = await fetch("http://localhost:5000/api/reports");
+      const data = await response.json();
+      console.log("Načtená data:", data); // Debug
+      setOriginalReportList(data);
+      setReportList(data);
+    } catch (error) {
+      message.error("Chyba při načítání reportů.");
+    } finally {
+      setLoadingReports(false);
+    }
+  };
+  
+  
+
+  useEffect(() => {
+    fetchReports();
+  }, []);
+
+  useEffect(() => {
+    const opCodeFieldWatcher = form.getFieldValue("opCode");
+  
+    if (selectedClient && selectedClient.opCodes?.length > 0) {
+      const assignedOpCode = selectedClient.opCodes[0]; // Přiřazený OP kód klienta
+  
+      if (opCodeFieldWatcher !== assignedOpCode) {
+        // Automaticky nastaví OP kód zpět, pokud neodpovídá
+        form.setFieldsValue({ opCode: assignedOpCode });
+      }
+    }
+  }, [form, selectedClient]);
+  
+
+// Funkce pro zpracování vyhledávání
+// Funkce pro zpracování vyhledávání
+const handleSearch = (e) => {
+  const value = e.target.value.toLowerCase().trim(); // Vyhledávací text
+  setSearchTerm(value);
+
+  if (!value) {
+    // Pokud je vyhledávací text prázdný, vrátíme původní seznam reportů
+    setReportList(originalReportList);
+    return;
+  }
+
+  // Filtrování reportů
+  const filtered = originalReportList.filter((report) => {
+    const clientName = report.client?.name?.toLowerCase() || "";
+    const technicianName = report.technician?.name?.toLowerCase() || "";
+    const opCode = report.opCode?.toLowerCase() || "";
+    const reportDate = dayjs(report.date).format("DD.MM.YYYY").toLowerCase(); // Formátování datumu na stejný formát pro filtrování
+
+    return (
+      clientName.includes(value) ||
+      technicianName.includes(value) ||
+      opCode.includes(value) ||
+      reportDate.includes(value) // Vyhledávání i podle datumu
+    );
+  });
+
+  setReportList(filtered); // Aktualizace seznamu reportů
 };
+
+const handleCombinedValuesChange = (changedValues, allValues) => {
+  // Zavolejte obě funkce
+  calculateTotalWorkCost(changedValues, allValues); 
+  handleValuesChange(changedValues, allValues);
+};
+
+
+const handleViewDetails = (report) => {
+  console.log("Vybraný report:", report); // Debug: Kontrola, jestli je report předán
+  setSelectedReport(report);
+  setIsDetailModalVisible(true);
+};
+
 
 const handleCloseDetails = () => {
-  setSelectedReport(null); // Vyčistí vybraný report
-  setIsDetailModalVisible(false); // Zavře modal
+  console.log("Zavírám modal."); // Debug
+  setSelectedReport(null);
+  setIsDetailModalVisible(false);
 };
 
-
-useEffect(() => {
-  const initializeReports = () => {
-    const newReports = {};
-    Array.from({ length: reportCount }).forEach((_, index) => {
-      const key = `report-${index + 1}`;
-      if (!reports[key]) {
-        newReports[key] = {
-          reportDate: null,
-          jobs: [
-            {
-              description: "",
-              materials: "",
-              clientId: null,
-              address: "",
-              arrivalTime: null,
-              leaveTime: null,
-            },
-          ],
-          travelResult: null,
-          selectedPositions: { from: null, to: null },
-          materials: [],
-          customMaterials: [],
-          chargedCost: 0,
-          unchargedCost: 0,
-          notes: "",
-          opCode: "",
-          technicianId: null,
-        };
+  
+  //Klient Info
+  const handleClientChange = (clientId) => {
+    const client = clients.find((c) => c.id === clientId);
+    setSelectedClient(client);
+  
+    // Automatické vyplnění OP kódu, pokud existuje
+    if (client && client.opCodes?.length > 0) {
+      form.setFieldsValue({ opCode: client.opCodes[0] }); // Vyplní první OP kód
+    } else {
+      form.setFieldsValue({ opCode: "" }); // Vymaže pole OP kódu, pokud klient nemá žádný
+    }
+  };
+  
+  const handleValuesChange = (changedValues, allValues) => {
+    if (changedValues.opCode && selectedClient && selectedClient.opCodes?.length > 0) {
+      const assignedOpCode = selectedClient.opCodes[0];
+  
+      // Pokud uživatel změní hodnotu a klient má OP přiřazené, vrátíme hodnotu zpět
+      if (changedValues.opCode !== assignedOpCode) {
+        message.warning("Hodnotu OP kódu nelze měnit. Byla obnovena původní hodnota.");
+        form.setFieldsValue({ opCode: assignedOpCode });
       }
-    });
-
-    setReports((prevReports) => ({
-      ...prevReports,
-      ...newReports,
-    }));
-  };
-
-  initializeReports();
-}, [reportCount]);  // Při změně reportCount se efekt znovu spustí
-
-
-
-
-
-const handleCreateForms = () => {
-  const newReports = Array.from({ length: reportCount }).map((_, index) => ({
-    key: `report-${index + 1}`,
-    reportDate: null,
-    jobs: [],
-    notes: "",
-    opCode: "",
-    clientId: null,
-    technicianId: null,
-    materials: [],
-    customMaterials: [],
-  }));
-
-  setReports(newReports);
-  setIsModalVisible(true); // Otevře modální okno
-};
-
-
-
-
-
-
-// Načtení techniků z databáze
-useEffect(() => {
-  const fetchTechnicians = async () => {
-    try {
-      const data = await getTechnicians(); // API volání
-      console.log("Načtení techniků:", data); // Debug
-      setTechnicians(data); // Nastavení techniků do stavu
-    } catch (error) {
-      message.error("Chyba při načítání techniků.");
-    }
-  };
-
-  fetchTechnicians();
-}, []);
-
-
-
-
-
-const handleClientChange = (clientId) => {
-  const client = clients.find((c) => c.id === clientId);
-  setSelectedClient(client);
-  if (client && client.opCode) {
-    form.setFieldsValue({ opCode: client.opCode });
-  }
-};
-
-
-
-
-// Funkce pro načtení materiálů ze skladu
-const fetchMaterials = async () => {
-  try {
-    const response = await superagent.get("http://localhost:5000/api/warehouse");
-    setMaterials(response.body); // Načtení skladových materiálů
-  } catch (error) {
-    message.error("Chyba při načítání materiálů ze skladu.");
-  }
-};
-
-// Výpočet celkových nákladů materiálů
-const calculateCosts = (materials, customMaterials) => {
-  let totalChargedCost = 0;
-  let totalUnchargedCost = 0;
-
-  // Pro skladové materiály
-  materials.forEach((material) => {
-    const cost = (material.usedQuantity || 0) * material.price;
-    if (material.chargeCustomer) {
-      totalChargedCost += cost;
-    } else {
-      totalUnchargedCost += cost;
-    }
-  });
-
-  // Pro vlastní materiály
-  customMaterials.forEach((material) => {
-    const cost = (material.quantity || 0) * material.price;
-    if (material.chargeCustomer) {
-      totalChargedCost += cost;
-    } else {
-      totalUnchargedCost += cost;
-    }
-  });
-
-  setChargedCost(totalChargedCost);
-  setUnchargedCost(totalUnchargedCost);
-};
-
-
-
-// Volání fetchMaterials při načtení komponenty
-useEffect(() => {
-  fetchMaterials();
-}, []);
-
-const handleMaterialChange = (record, field, value) => {
-  const updatedMaterials = materials.map((material) =>
-    material.id === record.id ? { ...material, [field]: value } : material
-  );
-  setMaterials(updatedMaterials);
-
-  // Přepočet celkových nákladů
-  calculateCosts(updatedMaterials, customMaterials);
-};
-
-
-
-const handleCustomMaterialChange = (record, field, value) => {
-  const updatedCustomMaterials = customMaterials.map((material) =>
-    material.key === record.key ? { ...material, [field]: value } : material
-  );
-  setCustomMaterials(updatedCustomMaterials);
-  calculateCosts(materials, updatedCustomMaterials);
-};
-
-
-
-
-const calculateTotalWorkCost = useCallback(() => {
-  const { arrivalTime, leaveTime } = form.getFieldsValue(["arrivalTime", "leaveTime"]);
-
-  if (arrivalTime && leaveTime) {
-    const arrival = dayjs(arrivalTime);
-    const leave = dayjs(leaveTime);
-
-    if (arrival.isValid() && leave.isValid() && leave.isAfter(arrival)) {
-      const durationInMinutes = leave.diff(arrival, "minute");
-      const cost = (durationInMinutes / 60) * hourlyRate; // Výpočet nákladů
-      settotalWorkCost(cost); // Nastavte vypočtenou hodnotu do stavu
-      return;
-    }
-  }
-
-  settotalWorkCost(0); // Pokud časy nejsou validní, nastaví 0
-}, [form, hourlyRate]);
-
-
-
-
-
-
-
-
-  
-// Toto musí být pod calculatetotalWorkCost
-
-
-
-
-useEffect(() => {
-  const fetchClients = async () => {
-    try {
-      const data = await getClients(); // API volání
-      console.log("Klienti načteni z API:", data); // Zkontrolujte logy
-      setClients(data); // Nastavíme klienty
-    } catch (error) {
-      message.error("Chyba při načítání klientů.");
     }
   };
   
-  fetchClients();
-}, []);
-
-  const handleMapRightClick = (event) => {
-    const coordinates = {
-      lat: event.latLng.lat(),
-      lng: event.latLng.lng(),
-    };
   
-    console.log("Right-click coordinates:", coordinates); // Logujeme kliknutí
-  
-    // Zavřeme stávající InfoWindow
-    setInfoWindow(null);
-  
-    // Nastavíme nové InfoWindow
-    setTimeout(() => {
-      setInfoWindow({ position: coordinates });
-      console.log("Current infoWindow state:", { position: coordinates }); // Logujeme nový stav
-    }, 0);
-  };
-  
-  
-  
-  const handleAddCustomMaterial = () => {
-    const newMaterial = {
-      key: Date.now(), // Unikátní klíč
-      name: "",
-      price: 0,
-      quantity: 0,
-      chargeCustomer: false, // Výchozí hodnota pro zaúčtování
-    };
-    setCustomMaterials([...customMaterials, newMaterial]);
-  };
-  const handleRemoveCustomMaterial = (key) => {
-    const updatedMaterials = customMaterials.filter((material) => material.key !== key);
-    setCustomMaterials(updatedMaterials);
-    calculateCosts(materials, updatedMaterials); // Přepočet nákladů
-  };
-  
-
-  const handleSelect = (type) => {
-    if (type === "from") {
-      setSelectedPositions({ ...selectedPositions, from: infoWindow.position });
-    } else if (type === "to") {
-      setSelectedPositions({ ...selectedPositions, to: infoWindow.position });
-    }
-    setInfoWindow(null);
-  };
-
   const handleAddressSubmit = async () => {
     try {
-      const response = await superagent
-        .get("https://maps.googleapis.com/maps/api/geocode/json")
-        .query({
-          address: addressQuery,
-          key: GOOGLE_MAPS_API_KEY,
-        });
-
-      const location = response.body.results[0]?.geometry.location;
+      const response = await fetch(
+        `https://maps.googleapis.com/maps/api/geocode/json?address=${addressQuery}&key=${GOOGLE_MAPS_API_KEY}`
+      );
+      const data = await response.json();
+      const location = data.results[0]?.geometry.location;
       if (location) {
         setMapCenter(location);
       } else {
-        message.error("Adresa nebyla nalezena, zkuste zadat konkrétnější adresu.");
+        message.error("Adresa nebyla nalezena.");
       }
     } catch (error) {
       console.error("Chyba při vyhledávání adresy:", error);
-      message.error("Nastala chyba při vyhledávání adresy. Zkuste to prosím znovu.");
     }
   };
 
-  const handleCalculateRoute = () => {
-    return new Promise((resolve, reject) => {
-      // Kontrola, zda existují souřadnice pro 'from' a 'to'
-      if (!selectedPositions.from || !selectedPositions.from.lat || !selectedPositions.from.lng || !selectedPositions.to || !selectedPositions.to.lat || !selectedPositions.to.lng) {
-        message.error("Chybí souřadnice pro výpočet trasy.");
-        reject("Chybí souřadnice pro výpočet trasy.");
-        return;  // Ukončíme funkci, pokud chybí souřadnice
-      }
-  
-      // Pokračuj, pokud jsou souřadnice platné
-      superagent
-        .get("http://localhost:5000/api/distance")
-        .query({
-          origins: `${selectedPositions.from.lat},${selectedPositions.from.lng}`,
-          destinations: `${selectedPositions.to.lat},${selectedPositions.to.lng}`,
-        })
-        .then((response) => {
-          if (response.body && response.body.rows?.length > 0) {
-            const result = response.body.rows[0].elements[0];
-            if (result.status === "OK") {
-              const travelData = {
-                distance: (result.distance.value / 1000) * 2,
-                duration: (result.duration.value / 60) * 2,
-              };
-  
-              setTravelResult(travelData);
-              resolve(travelData); // Vyřeš promisu s výsledkem
-            } else {
-              reject("Nelze vypočítat trasu.");
-            }
-          } else {
-            reject("Neplatná odpověď serveru.");
-          }
-        })
-        .catch((error) => {
-          reject("Chyba při volání API: " + error.message);
-        });
-    });
+  const handleSelect = (type) => {
+    if (type === "from") {
+      setSelectedPositions((prev) => ({ ...prev, from: infoWindow.position }));
+    } else if (type === "to") {
+      setSelectedPositions((prev) => ({ ...prev, to: infoWindow.position }));
+    }
+    setInfoWindow(null);
   };
+
   
-  
-
-
-
-
-
-
   const handleCalculateRouteAndCosts = async () => {
     try {
       const travelData = await handleCalculateRoute(); // Počkej na výpočet trasy
-      console.log("Travel data:", travelData);
-  
-      // Výpočet cestovních nákladů
       if (travelData) {
         const { distance, duration } = travelData;
-        const travelCostValue = distance * 8 + (duration / 60) * 100; // 8 Kč/km a 100 Kč/hod
-        setTravelCost(travelCostValue);
-  
-        console.log("Calculated travel cost:", travelCostValue);
+        const travelCostValue = (distance * 2 * 8) + ((duration * 2) / 60) * 100; // 8 Kč/km a 100 Kč/hod, obojí krát 2
+        setTravelCost(travelCostValue); // Nastaví cestovní náklady
+        setTravelResult({
+          distance: distance * 2, // Vzdálenost krát 2
+          duration: duration * 2, // Čas krát 2
+        }); // Aktualizuje výsledky trasy
+        console.log("Updated travelResult:", {
+          distance: distance * 2,
+          duration: duration * 2,
+        });
       }
     } catch (error) {
       message.error("Chyba: " + error);
@@ -467,138 +250,419 @@ useEffect(() => {
   
   
 
-  const handleSubmit = async (values) => {
+  
+
+
+  const handleMapRightClick = (event) => {
+    const coordinates = {
+      lat: event.latLng.lat(),
+      lng: event.latLng.lng(),
+    };
+    setInfoWindow({ position: coordinates });
+  };
+
+  const handleCalculateRoute = () => {
+    return new Promise((resolve, reject) => {
+      if (!selectedPositions.from || !selectedPositions.to) {
+        message.error("Chybí souřadnice pro výpočet trasy.");
+        reject("Chybí souřadnice pro výpočet trasy.");
+        return;
+      }
+
+      fetch(
+        `http://localhost:5000/api/distance?origins=${selectedPositions.from.lat},${selectedPositions.from.lng}&destinations=${selectedPositions.to.lat},${selectedPositions.to.lng}`
+      )
+        .then((response) => response.json())
+        .then((data) => {
+          const travelData = {
+            distance: (data.rows[0].elements[0].distance.value / 1000) * 2,
+            duration: (data.rows[0].elements[0].duration.value / 60) * 2,
+          };
+          resolve(travelData);
+        })
+        .catch((error) => reject(error));
+    });
+  };
+
+  const handleEditReport = (report) => {
+    console.log("Editace reportu:", report); // Debug
+    setSelectedReport(report); // Uloží vybraný report do stavu
+    form.setFieldsValue({
+      reportDate: dayjs(report.date, "YYYY-MM-DD"), // Datum jako dayjs objekt
+      opCode: report.opCode,
+      clientId: report.client?.id,
+      technicianId: report.technician?.id,
+      description: report.description,
+    });
+    setIsModalVisible(true); // Otevře modální okno
+  };
+  
+
+  const handleDeleteReport = async (report) => {
     try {
-      
-        // Validace povinných polí
-        if (!values.reportDate) {
-            message.error("Datum reportu je povinné.");
-            return;
-        }
+      await superagent.delete(`http://localhost:5000/api/reports/${report.id}`);
+      message.success("Report byl úspěšně smazán.");
+      fetchReports(); // Aktualizace seznamu reportů
+    } catch (error) {
+      console.error("Chyba při mazání reportu:", error);
+      message.error("Nepodařilo se smazat report.");
+    }
+  };
+  
+  const calculateTotalWorkCost = useCallback(() => {
+    const { arrivalTime, leaveTime } = form.getFieldsValue(["arrivalTime", "leaveTime"]);
+    if (arrivalTime && leaveTime) {
+      const arrival = dayjs(arrivalTime, "HH:mm");
+      const leave = dayjs(leaveTime, "HH:mm");
+  
+      if (arrival.isValid() && leave.isValid() && leave.isAfter(arrival)) {
+        const durationInMinutes = leave.diff(arrival, "minute");
+        const cost = (durationInMinutes / 60) * hourlyRate; // Výpočet nákladů
+        setTotalWorkCost(cost); // Nastavte vypočtenou hodnotu do stavu
+        return;
+      }
+    }
+    setTotalWorkCost(0); // Pokud časy nejsou validní, nastaví 0
+  }, [form, hourlyRate]);
+  
+  
 
-        const clientFieldName = `clientId_${values.reportIndex}`;
-        const clientId = values[clientFieldName] || values[`id_${values.reportIndex}`];
+  const handleShowDocument = async (report) => {
+    try {
+      // Načíst šablonu dokumentu
+      const response = await fetch("/templates/template.docx");
+      const arrayBuffer = await response.arrayBuffer();
+  
+      // Vytvořit instanci PizZip s načtenými daty
+      const zip = new PizZip(arrayBuffer);
+  
+      // Inicializovat Docxtemplater s PizZip
+      const doc = new Docxtemplater(zip, {
+        paragraphLoop: true,
+        linebreaks: true,
+      });
+  
+      // Definovat data pro šablonu
+      const data = {
+        name: report.client?.name || "Neznámý klient",
+        date: dayjs(report.date).format("DD.MM.YYYY"),
+        description: report.description || "Popis není k dispozici",
+      };
+  
+      // Nastavit data do šablony
+      doc.setData(data);
+  
+      // Renderovat dokument
+      doc.render();
+  
+      // Získat obsah jako blob
+      const renderedDocument = doc.getZip().generate({ type: "arraybuffer" });
+  
+      // Převést pomocí Mammoth na HTML
+      const htmlResult = await mammoth.convertToHtml({ arrayBuffer: renderedDocument });
+  
+      // Zobrazit výsledek v modálním okně
+      Modal.info({
+        title: "Zobrazení dokumentu",
+        content: <div dangerouslySetInnerHTML={{ __html: htmlResult.value }} />,
+        width: "80%",
+      });
+    } catch (error) {
+      console.error("Chyba při zobrazování dokumentu:", error);
+      message.error("Nepodařilo se zobrazit dokument.");
+    }
+  };
 
-        if (!clientId) {
-            message.error("Je nutné vybrat klienta.");
-            return;
-        }
+  const handleDownloadDocument = async (report) => {
+    try {
+      // Načíst šablonu dokumentu
+      const response = await fetch("/templates/template.docx");
+      const arrayBuffer = await response.arrayBuffer();
+  
+      // Inicializace PizZip s daty šablony
+      const zip = new PizZip(arrayBuffer);
+  
+      // Inicializace Docxtemplater s použitím PizZip
+      const doc = new Docxtemplater(zip, {
+        paragraphLoop: true,
+        linebreaks: true,
+      });
+  
+      // Definice dat, která se vloží do šablony
+      const data = {
+        name: report.client?.name || "Neznámý klient",
+        date: dayjs(report.date).format("DD.MM.YYYY"),
+        description: report.description || "Popis není k dispozici",
+      };
+  
+      // Nastavení dat do šablony
+      doc.setData(data);
+  
+      // Vykreslení šablony s daty
+      doc.render();
+  
+      // Generování dokumentu ve formátu blob
+      const renderedDocument = doc.getZip().generate({ type: "blob" });
+  
+      // Vytvoření odkazu pro stažení
+      const link = document.createElement("a");
+      link.href = URL.createObjectURL(renderedDocument);
+      link.download = `report-${report.id || "neznámý"}.docx`;
+      link.click();
+  
+      // Uvolnění paměti
+      URL.revokeObjectURL(link.href);
+    } catch (error) {
+      console.error("Chyba při stahování dokumentu:", error);
+      message.error("Nepodařilo se stáhnout dokument.");
+    }
+  };
+  
+  
+  
+  
+  // Definice sloupců tabulky
+  const reportColumns = [
+    {
+      title: "Datum reportu",
+      dataIndex: "date",
+      key: "date",
+      render: (text) => dayjs(text).format("DD.MM.YYYY"),
+    },
+    {
+      title: "Klient",
+      dataIndex: "client",
+      key: "client",
+      render: (client) =>
+        client ? (
+          <Button
+            type="link"
+            onClick={() =>
+              navigate(`/clients?search=${encodeURIComponent(client.name)}`)
+            }
+          >
+            {client.name}
+          </Button>
+        ) : (
+          "Neznámý klient"
+        ),
+    },
+    {
+      title: "Technik",
+      dataIndex: "technician",
+      key: "technician",
+      render: (technician) =>
+        technician ? (
+          <Button
+            type="link"
+            onClick={() =>
+              navigate(
+                `/technicians?search=${encodeURIComponent(technician.name)}`
+              )
+            }
+          >
+            {technician.name}
+          </Button>
+        ) : (
+          "Neznámý technik"
+        ),
+    },
+    {
+      title: "Celková cena",
+      dataIndex: "totalWorkCost",
+      key: "totalWorkCost",
+      render: (text, record) =>
+        `${(
+          (record.totalWorkCost || 0) +
+          (record.totalTravelCost || 0) +
+          (record.totalMaterialCost || 0)
+        ).toFixed(2)} Kč`,
+    },
+    {
+      title: "Akce",
+      key: "action",
+      render: (_, record) => (
+        <div style={{ display: "flex", gap: "10px" }}>
+          <Button type="link" onClick={() => handleViewDetails(record)}>
+            Detaily
+          </Button>
+          <Button type="link" onClick={() => handleEditReport(record)}>
+            Upravit
+          </Button>
+          <Button
+            type="link"
+            style={{ color: "blue" }}
+            onClick={() => handleShowDocument(record)}
+          >
+            Zobrazit dokument
+          </Button>
+          <Button
+            type="link"
+            style={{ color: "green" }}
+            onClick={() => handleDownloadDocument(record)}
+          >
+            Stáhnout dokument
+          </Button>
+          <Button type="link" danger onClick={() => handleDeleteReport(record)}>
+            Smazat
+          </Button>
+        </div>
+      ),      
+    },
+  ];
+  
 
-        if (!values.technicianId) {
-            message.error("Je nutné vybrat technika.");
-            return;
-        }
+  
 
-        if (!technicians.find((tech) => tech.id === values.technicianId)) {
-            message.error("Vybraný technik neexistuje.");
-            return;
-        }
+  const handleSubmit = async (values) => {
+    const usedMaterials = materials
+        .filter((material) => material.usedQuantity > 0)
+        .map((material) => ({
+            id: material.id,
+            name: material.name,
+            usedQuantity: material.usedQuantity,
+            remainingQuantity: material.quantity - material.usedQuantity,
+        }));
 
-        if (!values.opCode) {
-            message.error("OP kód je povinný.");
-            return;
-        }
+    calculateCosts(materials, customMaterials);
 
+    let travelCostValue = 0;
+    if (travelResult) {
+        const { distance, duration } = travelResult;
+        travelCostValue = distance * 8 + (duration / 60) * 100;
+    }
 
+    setTravelCost(travelCostValue);
 
-        // Výpočet cestovních nákladů
-        let travelCostValue = 0;
-        if (travelResult) {
-            const { distance, duration } = travelResult;
-            travelCostValue = distance * 8 + (duration / 60) * 100; // 8 Kč/km a 100 Kč/hod
-        }
-        setTravelCost(travelCostValue);
+    const reportData = {
+        date: values.reportDate?.format("YYYY-MM-DD"),
+        description: values.description || "",
+        technicianId: values.technicianId,
+        clientId: values.clientId,
+        opCode: values.opCode,
+        materialUsed: {
+            warehouse: usedMaterials,
+            custom: customMaterials,
+        },
+        totalWorkCost: parseFloat(totalWorkCost.toFixed(2)),
+        totalTravelCost: parseFloat(travelCostValue.toFixed(2)),
+        totalMaterialCost: parseFloat((chargedCost + unchargedCost).toFixed(2)),
+    };
 
-        // Zpracování materiálů
-        const usedMaterials = materials
-            .filter((material) => material.usedQuantity > 0)
-            .map((material) => ({
-                id: material.id,
-                name: material.name,
-                usedQuantity: material.usedQuantity,
-                remainingQuantity: material.quantity - material.usedQuantity,
-            }));
-
-        const customUsedMaterials = customMaterials
-            .filter((material) => material.quantity > 0)
-            .map((material) => ({
-                name: material.name,
-                quantity: material.quantity,
-                price: material.price,
-                chargeCustomer: material.chargeCustomer,
-            }));
-
-        const totalMaterialCost = chargedCost + unchargedCost;
-
-        // Sestavení dat reportu
-        const reportData = {
-            description: values.description || "",
-            clientId: clientId,
-            date: values.reportDate?.format("YYYY-MM-DD"), // Převod na správný formát
-            technicianId: values.technicianId,
-            opCode: values.opCode,
-            materials: Array.isArray(materials) ? materials : [], // Ověření, že materials je pole
-            materialUsed: {
-                warehouse: usedMaterials,
-                custom: customUsedMaterials,
-            },
-            totalWorkCost: parseFloat(totalWorkCost.toFixed(2)), // Přidání ceny za práci
-            totalTravelCost: parseFloat(travelCostValue.toFixed(2)),
-            totalMaterialCost: parseFloat(totalMaterialCost.toFixed(2)),
-            travelDistance: parseFloat(travelResult?.distance.toFixed(2)),
-            travelDuration: parseFloat(travelResult?.duration.toFixed(1)),
-        };
-
-        console.log("Data odeslána na backend:", reportData);
-
-        // Přiřazení OP kódu, pokud klient nemá
-        if (selectedClient && !selectedClient.opCode && values.opCode) {
-            try {
+    try {
+        if (selectedClient && values.opCode) {
+            const existingOpCodes = selectedClient.opCodes || [];
+            if (existingOpCodes.includes(values.opCode)) {
+                message.warning("Tento OP kód již byl klientovi přiřazen.");
+            } else {
                 await superagent
                     .post(`http://localhost:5000/api/clients/${selectedClient.id}/assign-op`)
                     .send({ opCode: values.opCode });
-                console.log("OP kód byl úspěšně přiřazen.");
-            } catch (error) {
-                console.error("Chyba při přiřazení OP kódu:", error.response?.body || error.message);
-                message.error("Nepodařilo se přiřadit OP kód klientovi.");
+                message.success("OP kód byl úspěšně přiřazen klientovi.");
             }
         }
 
-        // Odeslání reportu
         await createReport(reportData);
-        message.success("Report byl úspěšně vytvořen!");
+        message.success("Report byl vytvořen!");
 
-        // Reset formuláře a stavů
-        form.resetFields();
-        setSelectedClient(null);
-        setJobs([
-            {
-                description: "",
-                materials: "",
-                clientId: null,
-                address: "",
-                arrivalTime: null,
-                leaveTime: null,
-                travelTimeToNext: null,
-            },
-        ]);
-        setMaterials([]);
-        setCustomMaterials([]);
+        // Aktualizace skladu
+        for (const material of usedMaterials) {
+            await updateWarehouseItem(material.id, {
+                quantity: material.remainingQuantity,
+            });
+        }
+        message.success("Sklad byl úspěšně aktualizován!");
+
+        // Obnovení dat skladu a reportů
+        fetchMaterialsFromWarehouse(); // Aktualizuje sklad
+        fetchReports(); // Aktualizuje seznam reportů
+
+        // Zavření modálního okna
+        setIsModalVisible(false);
     } catch (error) {
-        console.error("Chyba při vytváření reportu:", error.response?.data || error.message);
-        message.error(`Chyba při vytváření reportu: ${error.response?.data?.message || error.message}`);
+        console.error("Chyba při vytváření reportu nebo aktualizaci skladu:", error);
+        message.error("Chyba při vytváření reportu nebo aktualizaci skladu.");
     }
 };
 
 
   
+  // Funkce pro změnu hodnoty skladového materiálu
+  const handleMaterialChange = (record, field, value) => {
+    const updatedMaterials = materials.map((material) =>
+      material.id === record.id ? { ...material, [field]: value } : material
+    );
+    setMaterials(updatedMaterials);
+  
+    // Přepočet celkových nákladů
+    calculateCosts(updatedMaterials, customMaterials);
+  };
+  
 
+// Funkce pro změnu hodnoty vlastního materiálu
+const handleCustomMaterialChange = (record, key, value) => {
+  setCustomMaterials((prevCustomMaterials) =>
+    prevCustomMaterials.map((material) =>
+      material.key === record.key
+        ? { ...material, [key]: value }
+        : material
+    )
+  );
+};
 
+// Funkce pro odstranění vlastního materiálu
+const handleRemoveCustomMaterial = (key) => {
+  setCustomMaterials((prevCustomMaterials) =>
+    prevCustomMaterials.filter((material) => material.key !== key)
+  );
+};
 
+// Funkce pro přidání nového vlastního materiálu
+const handleAddCustomMaterial = () => {
+  const newMaterial = {
+    key: Date.now(), // Unikátní klíč na základě aktuálního času
+    name: "",
+    price: 0,
+    quantity: 0,
+    chargeCustomer: false,
+  };
+
+  setCustomMaterials((prevCustomMaterials) => [...prevCustomMaterials, newMaterial]);
+};
+
+  // Výpočet nákladů
+  const calculateCosts = (materials, customMaterials) => {
+    let totalChargedCost = 0;
+    let totalUnchargedCost = 0;
+  
+    // Pro skladové materiály
+    materials.forEach((material) => {
+      const cost = (material.usedQuantity || 0) * material.price;
+      if (material.chargeCustomer) {
+        totalChargedCost += cost;
+      } else {
+        totalUnchargedCost += cost;
+      }
+    });
+  
+    // Pro vlastní materiály
+    customMaterials.forEach((material) => {
+      const cost = (material.quantity || 0) * material.price;
+      if (material.chargeCustomer) {
+        totalChargedCost += cost;
+      } else {
+        totalUnchargedCost += cost;
+      }
+    });
+  
+    // Aktualizace stavů
+    setChargedCost(totalChargedCost);
+    setUnchargedCost(totalUnchargedCost);
+  };
   
   
-  
-  // Sloupce pro skladové materiály
+
+// Sloupce pro skladové materiály
 const materialColumns = [
   {
     title: "Název materiálu",
@@ -641,6 +705,7 @@ const materialColumns = [
     ),
   },
 ];
+
 
 // Sloupce pro vlastní materiály
 const customMaterialColumns = [
@@ -705,274 +770,261 @@ const customMaterialColumns = [
     ),
   },
 ];
-  
-return (
-  <div>
-    {/* Sekce pro nastavení počtu reportů */}
-    <div style={{ marginBottom: "20px" }}>
-      <Button
-        type="primary"
-        onClick={() => {
-          handleCreateForms(); // Vytvoření formulářů
-          setIsModalVisible(true); // Zobrazení modalu
-        }}
-      >
-        Vytvořit formuláře
-      </Button>
-    </div>
 
-    <div style={{ marginTop: "20px" }}>
-   <h2>Seznam vytvořených reportů</h2>
-   <Table
-      dataSource={reportList}
-      columns={reportColumns}
-      loading={loadingReports}
-      rowKey="id" // Předpokládáme, že každý report má unikátní `id`
-   />
-</div>
+
+
+
+
+  return (
+    
+    <div>
 <Modal
-   title="Detaily reportu"
-   visible={isDetailModalVisible}
-   onCancel={handleCloseDetails}
-   footer={[
-      <Button key="close" onClick={handleCloseDetails}>
-         Zavřít
-      </Button>,
-   ]}
+  title="Detail reportu"
+  visible={isDetailModalVisible}
+  onCancel={handleCloseDetails}
+  footer={null}
+  width="70%"
 >
-   {selectedReport ? (
-      <div>
-         <p><strong>Datum reportu:</strong> {selectedReport.reportDate}</p>
-         <p><strong>Klient:</strong> {selectedReport.clientName}</p>
-         <p><strong>Technik:</strong> {selectedReport.technicianName}</p>
-         <p><strong>Celková cena:</strong> {selectedReport.totalCost} Kč</p>
-         {/* Přidej další detaily podle potřeby */}
-         <h3>Podrobnosti:</h3>
-         <ul>
-            {selectedReport.jobs.map((job, index) => (
-               <li key={index}>
-                  <strong>Popis práce:</strong> {job.description}<br />
-                  <strong>Čas příjezdu:</strong> {job.arrivalTime}<br />
-                  <strong>Čas odjezdu:</strong> {job.leaveTime}
-               </li>
-            ))}
-         </ul>
-      </div>
-   ) : (
-      <p>Načítám detaily...</p>
-   )}
+  {selectedReport ? (
+    <div>
+      {/* Informace o klientovi */}
+      <Card title="Informace o klientovi" style={{ marginBottom: "20px" }}>
+        <p><b>Jméno:</b> {selectedReport.client?.name || "Neznámý klient"}</p>
+        <p><b>OP kód:</b> {selectedReport.client?.opCodes?.join(', ') || "Není přiřazen"}</p>
+        <p><b>Email:</b> {selectedReport.client?.email || "Není k dispozici"}</p>
+        <p><b>Telefon:</b> {selectedReport.client?.phone || "Není k dispozici"}</p>
+        <p><b>Adresa:</b> {selectedReport.client?.address || "Není k dispozici"}</p>
+      </Card>
+
+      {/* Informace o technikovi */}
+      <Card title="Informace o technikovi" style={{ marginBottom: "20px" }}>
+        <p><b>Jméno:</b> {selectedReport.technician?.name || "Neznámý technik"}</p>
+        <p><b>Email:</b> {selectedReport.technician?.email || "Není k dispozici"}</p>
+        <p><b>Telefon:</b> {selectedReport.technician?.phone || "Není k dispozici"}</p>
+        <p><b>Identifikační číslo:</b> {selectedReport.technician?.employeeId || "Není přiřazeno"}</p>
+      </Card>
+
+      {/* Detaily reportu */}
+      <Card title="Detaily reportu" style={{ marginBottom: "20px" }}>
+        <p><b>Datum:</b> {dayjs(selectedReport.date).format("DD.MM.YYYY")}</p>
+        <p><b>Popis práce:</b> {selectedReport.description || "Není k dispozici"}</p>
+        <p><b>OP Kód:</b> {selectedReport.opCode || "Není přiřazen"}</p>
+      </Card>
+
+      {/* Náklady */}
+      <Card title="Celkové náklady">
+        <p><b>Cena za práci:</b> {selectedReport.totalWorkCost?.toFixed(2)} Kč</p>
+        <p><b>Cestovní náklady:</b> {selectedReport.totalTravelCost?.toFixed(2)} Kč</p>
+        <p><b>Náklady na materiál:</b> {selectedReport.totalMaterialCost?.toFixed(2)} Kč</p>
+        <p>
+          <b>Celková cena:</b>{" "}
+          {(
+            (selectedReport.totalWorkCost || 0) +
+            (selectedReport.totalTravelCost || 0) +
+            (selectedReport.totalMaterialCost || 0)
+          ).toFixed(2)}{" "}
+          Kč
+        </p>
+      </Card>
+    </div>
+  ) : (
+    <p>Načítání detailů...</p>
+  )}
 </Modal>
 
-    {/* Modal obsahující všechny formuláře */}
-    <Modal
-      title="Formuláře reportů"
-      visible={isModalVisible}
-      onCancel={() => setIsModalVisible(false)}
-      footer={null}
-      width="90%"
-    >
-      {/* Záložky pro každý report */}
-      <Tabs defaultActiveKey="1">
-        {Array.from({ length: reportCount }).map((_, index) => (
-          <Tabs.TabPane tab={`Report ${index + 1}`} key={index + 1}>
-            {/* Formulář pro jednotlivý report */}
-            <Card title={`Formulář Reportu ${index + 1}`}>
-              <Form
-                form={form}
-                layout="vertical"
-                onValuesChange={() => calculateTotalWorkCost()}
-                onFinish={(values) =>
-                  handleSubmit({ ...values, reportIndex: index + 1 })
-                }
-              >
-                {/* Datum reportu */}
-                <Form.Item
-  name="reportDate"
-  label="Datum reportu"
-  rules={[{ required: true, message: "Datum reportu je povinné." }]}
->
-  <DatePicker format="YYYY-MM-DD" />
-</Form.Item>
 
+<div style={{ padding: "16px" }}> {/* Vnější obal s odsazením */}
+  {/* Odsazené tlačítko */}
+  <Button
+    type="primary"
+    onClick={() => setIsModalVisible(true)}
+    style={{
+      marginBottom: "16px", // Vytvoří mezeru pod tlačítkem
+      marginLeft: "16px",   // Odsazení tlačítka od kraje
+    }}
+  >
+    Vytvořit report
+  </Button>
 
-
-                {/* Výpočet trasy */}
-                <Card
-                  title="Výpočet trasy z firmy na zakázku"
-                  style={{ marginBottom: "20px" }}
-                >
-                  <div style={{ marginBottom: "10px" }}>
-                    <Input
-                      value={addressQuery}
-                      onChange={(e) => setAddressQuery(e.target.value)}
-                      placeholder="Zadejte adresu (např. Václavské náměstí, Praha)"
-                      style={{ width: "70%", marginRight: "10px" }}
-                    />
-                    <Button type="primary" onClick={handleAddressSubmit}>
-                      Najít adresu
-                    </Button>
-                  </div>
-
-                  <LoadScriptNext googleMapsApiKey={GOOGLE_MAPS_API_KEY}>
-                    <GoogleMap
-                      mapContainerStyle={{ width: "100%", height: "400px" }}
-                      center={mapCenter}
-                      zoom={12}
-                      onRightClick={handleMapRightClick}
-                      options={{ gestureHandling: "greedy" }}
-                    >
-                      {selectedPositions.from && (
-                        <Marker
-                          position={selectedPositions.from}
-                          label="Začátek"
-                          icon={{
-                            url: "http://maps.google.com/mapfiles/ms/icons/green-dot.png",
-                          }}
-                        />
-                      )}
-                      {selectedPositions.to && (
-                        <Marker
-                          position={selectedPositions.to}
-                          label="Cíl"
-                          icon={{
-                            url: "http://maps.google.com/mapfiles/ms/icons/red-dot.png",
-                          }}
-                        />
-                      )}
-                      {infoWindow && (
-                        <InfoWindow
-                          position={infoWindow.position}
-                          onCloseClick={() => setInfoWindow(null)}
-                        >
-                          <div>
-                            <Button onClick={() => handleSelect("from")}>
-                              Nastavit jako začátek
-                            </Button>
-                            <Button onClick={() => handleSelect("to")}>
-                              Nastavit jako cíl
-                            </Button>
-                          </div>
-                        </InfoWindow>
-                      )}
-                    </GoogleMap>
-                  </LoadScriptNext>
-
-                  <div style={{ marginTop: "10px" }}>
-                    <Button
-                      type="primary"
-                      onClick={handleCalculateRouteAndCosts}
-                      disabled={!selectedPositions.from || !selectedPositions.to}
-                    >
-                      Vypočítat trasu a cestovní náklady
-                    </Button>
-                  </div>
-
-                  {travelResult && (
-                    <Card
-                      title="Výsledek"
-                      style={{ marginTop: "10px", background: "#f9f9f9" }}
-                    >
-                      <p>Vzdálenost tam a zpět: {travelResult.distance.toFixed(2)} km</p>
-                      <p>Čas tam a zpět: {travelResult.duration.toFixed(1)} minut</p>
-                    </Card>
-                  )}
-                </Card>
-
-                {/* Další formulářové položky */}
-                <Form.Item
-  name="arrivalTime"
-  label="Čas příjezdu na zakázku"
-  rules={[{ required: true, message: "Čas příjezdu je povinný." }]}
->
-  <DatePicker
-    showTime
-    format="YYYY-MM-DD HH:mm"
-    onChange={calculateTotalWorkCost} // Přepočet při změně
+  {/* Vyhledávací pole */}
+  <Input.Search
+    placeholder="Vyhledat podle klienta, technika, OP kódu nebo data (DD.MM.RRRR)"
+    onChange={handleSearch}
+    enterButton={<Button icon={<SearchOutlined />} />}
+    allowClear
+    style={{
+      marginLeft: "16px", // Odsazení vyhledávacího pole od kraje
+      maxWidth: "400px",  // Maximální šířka pole
+      borderRadius: "8px", // Zaoblení rohů
+    }}
   />
-</Form.Item>
-
-<Form.Item
-  name="leaveTime"
-  label="Čas odjezdu ze zakázky"
-  rules={[{ required: true, message: "Čas odjezdu je povinný." }]}
->
-  <DatePicker
-    showTime
-    format="YYYY-MM-DD HH:mm"
-    onChange={calculateTotalWorkCost} // Přepočet při změně
-  />
-</Form.Item>
+</div>
 
 
 
+<Table
+  dataSource={Array.isArray(reportList) ? reportList : []}
+  columns={reportColumns}
+  loading={loadingReports}
+  rowKey="id"
+/>
 
-
-  <Form.Item label="Cena za práci">
-    <p>{totalWorkCost.toFixed(2)} Kč</p>
-  </Form.Item>
-
-<Form.Item label="Cestovní náklady">
-  <p>{travelCost.toFixed(2)} Kč</p>
-</Form.Item>
-
-<Form.Item
-  name="opCode"
-  label="OP (Obchodní případ)"
-  rules={[{ required: true, message: "OP kód je povinný." }]}
->
-  <Input placeholder="Zadejte OP" />
-</Form.Item>
-
-
-
-
-                <Form.Item
-  name={`clientId_${index + 1}`}
-  label="Klient"
-  rules={[{ required: true, message: "Vyberte klienta" }]}
->
-<Select
-  placeholder="Vyberte klienta"
-  onChange={(value) => handleClientChange(value)}
->
-  {clients.map((client) => (
-    <Select.Option key={client.id} value={client.id}>
-      {client.name}
-    </Select.Option>
-  ))}
-</Select>
-
-</Form.Item>
-
-
-                {selectedClient && (
-                  <Card title="Informace o klientovi" style={{ marginBottom: "20px" }}>
-                    <p>
-                      <b>Jméno:</b> {selectedClient.name}
-                    </p>
-                    <p>
-                      <b>Adresa:</b> {selectedClient.address || "Nezadána"}
-                    </p>
-                    <p>
-                      <b>OP:</b> {selectedClient.opCode || "Klient nemá přidělený OP"}
-                    </p>
-                  </Card>
-                )}
-
-<Form.Item
-  name="technicianId"
-  label="Technik"
-  rules={[{ required: true, message: "Vyberte technika" }]}
->
-  <Select placeholder="Vyberte technika">
-    {technicians.map((technician) => (
-      <Select.Option key={technician.id} value={technician.id}>
-        {technician.name}
+      <Modal
+        title="Formulář reportu"
+        visible={isModalVisible}
+        onCancel={() => setIsModalVisible(false)}
+        footer={null}
+        width="90%"
+      >
+        <Tabs defaultActiveKey="1">
+          <Tabs.TabPane tab="Nový report" key="1">
+            <Form
+              form={form}
+              layout="vertical"
+              onFinish={handleSubmit}
+              onValuesChange={handleCombinedValuesChange}
+            >
+              <Form.Item name="reportDate" label="Datum reportu" rules={[{ required: true }]}>
+                <DatePicker format="YYYY-MM-DD" />
+              </Form.Item>
+  
+              <Form.Item name="opCode" label="OP Kód" rules={[{ required: true }]}>
+                <Input />
+              </Form.Item>
+              <Form.Item name="clientId" label="Klient" rules={[{ required: true }]}>
+  <Select onChange={handleClientChange}>
+    {clients.map((client) => (
+      <Select.Option key={client.id} value={client.id}>
+        {client.name}
       </Select.Option>
     ))}
   </Select>
 </Form.Item>
 
+{selectedClient && (
+  <Card title="Informace o klientovi" style={{ marginTop: "20px" }}>
+    <p><b>OP kód:</b> {selectedClient.opCodes?.join(', ') || "Klient nemá přidělený OP"}</p>
+    <p><b>Jméno:</b> {selectedClient.name}</p>
+    <p><b>Adresa:</b> {selectedClient.address || "Nezadána"}</p>
+    <p><b>Email:</b> {selectedClient.email || "Nezadán"}</p>
+    <p><b>Telefon:</b> {selectedClient.phone || "Nezadán"}</p>
+  </Card>
+)}
+
+
+
+              <Form.Item name="technicianId" label="Technik" rules={[{ required: true }]}>
+                <Select>
+                  {technicians.map((tech) => (
+                    <Select.Option key={tech.id} value={tech.id}>
+                      {tech.name}
+                    </Select.Option>
+                  ))}
+                </Select>
+              </Form.Item>
+  
+              {/* Výpočet trasy */}
+              <Card title="Výpočet trasy z firmy na zakázku" style={{ marginBottom: "20px" }}>
+  <div style={{ marginBottom: "10px" }}>
+    <Input
+      value={addressQuery}
+      onChange={(e) => setAddressQuery(e.target.value)}
+      placeholder="Zadejte adresu (např. Václavské náměstí, Praha)"
+      style={{ width: "70%", marginRight: "10px" }}
+    />
+    <Button type="primary" onClick={handleAddressSubmit}>
+      Najít adresu
+    </Button>
+  </div>
+  
+  <LoadScriptNext googleMapsApiKey={GOOGLE_MAPS_API_KEY}>
+    <GoogleMap
+      mapContainerStyle={{ width: "100%", height: "400px" }}
+      center={mapCenter}
+      zoom={12}
+      onRightClick={handleMapRightClick}
+      options={{ gestureHandling: "greedy" }}
+    >
+      {selectedPositions.from && (
+        <Marker
+          position={selectedPositions.from}
+          label="Začátek"
+          icon={{
+            url: "http://maps.google.com/mapfiles/ms/icons/green-dot.png",
+          }}
+        />
+      )}
+      {selectedPositions.to && (
+        <Marker
+          position={selectedPositions.to}
+          label="Cíl"
+          icon={{
+            url: "http://maps.google.com/mapfiles/ms/icons/red-dot.png",
+          }}
+        />
+      )}
+      {infoWindow && (
+        <InfoWindow
+          position={infoWindow.position}
+          onCloseClick={() => setInfoWindow(null)}
+        >
+          <div>
+            <Button onClick={() => handleSelect("from")}>
+              Nastavit jako začátek
+            </Button>
+            <Button onClick={() => handleSelect("to")}>
+              Nastavit jako cíl
+            </Button>
+          </div>
+        </InfoWindow>
+      )}
+    </GoogleMap>
+  </LoadScriptNext>
+  
+  <div style={{ marginTop: "10px" }}>
+    <Button
+      type="primary"
+      onClick={handleCalculateRouteAndCosts}
+      disabled={!selectedPositions.from || !selectedPositions.to}
+    >
+      Vypočítat trasu a cestovní náklady
+    </Button>
+  </div>
+  
+  {travelResult ? (
+  <Card
+    title="Výsledek trasy"
+    style={{ marginTop: "10px", background: "#f9f9f9" }}
+  >
+    <p>Vzdálenost tam a zpět: {travelResult.distance.toFixed(2)} km</p>
+    <p>Čas tam a zpět: {travelResult.duration.toFixed(1)} minut</p>
+  </Card>
+) : (
+  <p>Výsledek trasy zatím není dostupný. Klikněte na "Vypočítat trasu a cestovní náklady".</p>
+)}
+
+
+
+              </Card>
+<Form.Item
+  name="arrivalTime"
+  label="Čas příjezdu na zakázku"
+  rules={[{ required: true, message: "Čas příjezdu je povinný." }]}
+>
+  <TimePicker
+    showTime
+    onChange={calculateTotalWorkCost}
+  />
+</Form.Item>
+<Form.Item
+  name="leaveTime"
+  rules={[{ required: true, message: "Čas odjezdu je povinný." }]}
+>
+  <TimePicker
+    showTime
+    onChange={calculateTotalWorkCost}
+  />
+</Form.Item>
 <Form.Item
   name="description"
   label="Popis práce"
@@ -981,55 +1033,40 @@ return (
   <Input.TextArea rows={4} placeholder="Popište práci, která byla vykonána" />
 </Form.Item>
 
-                <Form.Item label="Použité materiály">
-                  <Card title="Skladové materiály">
-                    <Table
-  dataSource={materials}
-  columns={materialColumns}
-  pagination={false}
-                    />
-                  </Card>
-                  <Card title="Vlastní materiály" style={{ marginTop: 20 }}>
-                    <Button
-                      type="dashed"
-                      onClick={handleAddCustomMaterial}
-                      style={{ marginBottom: 10 }}
-                    >
-                      Přidat vlastní materiál
-                    </Button>
-                    <Table
-                      dataSource={customMaterials}
-                      columns={customMaterialColumns}
-                      pagination={false}
-                    />
-                  </Card>
-                </Form.Item>
-                <Card title="Celkové náklady">
-  <p>Zaúčtovaná cena pro zákazníka: {chargedCost.toFixed(2)} Kč</p>
-  <p>Nezaúčtovaná cena - Servis: {unchargedCost.toFixed(2)} Kč</p>
+<Card title="Použité materiály">
+  <Table dataSource={materials} columns={materialColumns} pagination={false} />
+</Card>
+<Card title="Vlastní materiály" style={{ marginTop: 20 }}>
+  <Table dataSource={customMaterials} columns={customMaterialColumns} pagination={false} />
+</Card>
+<Button type="dashed" onClick={handleAddCustomMaterial}>
+  Přidat vlastní materiál
+</Button>
+
+
+<Card title="Celkové náklady">
+<p>Cestovní náklady: {travelCost.toFixed(2)} Kč</p>
+<p>Cena za práci: {totalWorkCost.toFixed(2)} Kč</p>
+  <p>Zaúčtovaná cena za materiál pro zákazníka: {chargedCost.toFixed(2)} Kč</p>
+  <p>Nezaúčtovaná cena za materiál - Servis: {unchargedCost.toFixed(2)} Kč</p>
+  <p>Celková cena bez DPH: {((travelCost + totalWorkCost + chargedCost)).toFixed(2)} Kč</p>
+  <p>Celková cena s DPH: {((travelCost + totalWorkCost + chargedCost) * 1.21).toFixed(2)} Kč</p>
 </Card>
 
 
-                <Form.Item>
-                  <Button type="primary" htmlType="submit">
-                    Odeslat
-                  </Button>
-                </Form.Item>
-              </Form>
-            </Card>
+              <Form.Item>
+                <Button type="primary" htmlType="submit">
+                  Odeslat
+                </Button>
+              </Form.Item>
+            </Form>
           </Tabs.TabPane>
-        ))}
-      </Tabs>
-    </Modal>
-  </div>
-);
+        </Tabs>
+      </Modal>
+    </div>
+  );
+  
+  
+};
 
-
-
-  }; 
-
-
-
-    
-
-export default CreateReportWithMap;
+export default ReportPage;

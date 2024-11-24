@@ -27,16 +27,15 @@ const Client = sequelize.define('Client', {
     allowNull: true,
   },
   files: {
-    type: DataTypes.ARRAY(DataTypes.JSON), // JSON pole pro soubory
+    type: DataTypes.ARRAY(DataTypes.JSON),
     allowNull: false,
-    defaultValue: [], // Inicializace prázdným polem
+    defaultValue: [],
   },
   opCodes: {
-    type: DataTypes.ARRAY(DataTypes.STRING), // Pole pro více OP
+    type: DataTypes.ARRAY(DataTypes.STRING),
     allowNull: true,
-    defaultValue: [], // Výchozí prázdné pole
+    defaultValue: [],
     validate: {
-      // Validace, že `opCodes` je pole řetězců
       isArrayOfStrings(value) {
         if (!Array.isArray(value)) {
           throw new Error('opCodes musí být pole řetězců.');
@@ -51,4 +50,4 @@ const Client = sequelize.define('Client', {
   },
 });
 
-export default Client; // Změněno na export default pro správný import v ESM
+export default Client;

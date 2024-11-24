@@ -12,6 +12,7 @@ import Client from '../models/Client.js';
 import ChangeLog from '../models/ChangeLog.js';
 import Version from '../models/Version.js';
 
+
 const router = express.Router();
 const upload = multer({ dest: 'uploads/' });
 // 1. Vytvoření reportu
@@ -19,71 +20,70 @@ router.post('/', async (req, res) => {
     try {
         console.log("Přijatá data na backendu:", req.body);
 
+        // Rozbalení příchozích dat
         const {
-            opCode,
-            description,
-            materials = [],
-            hourlyRate,
-            travelCost,
-            totalWorkCost, // Zahrnutí hodnoty do databáze
-            technicianId,
-            clientId,
+            date,           // Datum reportu
+            description,    // Popis
+            technicianId,   // ID technika
+            clientId,       // ID klienta
+            opCode,         // OP kód
+            materialUsed,   // Použité materiály
+            totalWorkCost,  // Celková cena za práci
+            totalTravelCost, // Cestovní náklady
+            totalMaterialCost, // Náklady na materiály
         } = req.body;
 
-        if (typeof totalWorkCost !== 'number' || totalWorkCost < 0) {
+        // Validace povinných polí
+        if (!date) {
             return res.status(400).json({
-              message: "Chyba při vytváření reportu",
-              error: "Celková cena za práci musí být kladné číslo.",
+                message: "Chyba při vytváření reportu",
+                error: "Datum reportu je povinné.",
             });
-          }
-
-
-          const { date } = req.body;
-
-          if (!date) {
-            console.error("Datum reportu chybí v přijatých datech:", req.body);
+        }
+        if (!technicianId) {
             return res.status(400).json({
-              message: "Chyba při vytváření reportu",
-              error: "Datum reportu je povinné.",
+                message: "Chyba při vytváření reportu",
+                error: "Technik musí být zadán.",
             });
-          }
-
-        // Výpočet nákladů
-        const totalCosts = calculateCosts(materials, hourlyRate, travelCost);
-
-        console.log("Celkové náklady:", totalCosts);
-
-        const report = await Report.create({
-            opCode,
-            description,
-            materials,
-            hourlyRate,
-            travelCost,
-            totalCosts,
-            totalWorkCost, // Zahrnutí hodnoty do databáze
-            technicianId,
-            clientId,
-        });
-
-        // Aktualizace klienta (přiřazení OP kódu, pokud není přiřazený)
-        if (clientId && opCode) {
-            const client = await Client.findByPk(clientId);
-            if (client && (!client.opCodes || !client.opCodes.includes(opCode))) {
-                const updatedOpCodes = client.opCodes ? [...client.opCodes, opCode] : [opCode];
-                await client.update({ opCodes: updatedOpCodes });
-            }
+        }
+        if (!clientId) {
+            return res.status(400).json({
+                message: "Chyba při vytváření reportu",
+                error: "Klient musí být zadán.",
+            });
+        }
+        if (!opCode) {
+            return res.status(400).json({
+                message: "Chyba při vytváření reportu",
+                error: "OP kód je povinný.",
+            });
         }
 
-        res.status(201).json(report);
+        // Vytvoření nového reportu
+        const report = await Report.create({
+            date,
+            description,
+            technicianId,
+            clientId,
+            opCode,
+            materialUsed,
+            totalWorkCost,
+            totalTravelCost,
+            totalMaterialCost,
+        });
+
+        res.status(201).json(report); // Vrácení vytvořeného reportu
     } catch (error) {
         console.error("Chyba na backendu:", error);
-        res.status(400).json({ message: 'Chyba při vytváření reportu', error: error.message });
+        res.status(400).json({
+            message: "Chyba při vytváření reportu",
+            error: error.message,
+        });
     }
 });
 
 
 
-// 2. Získání všech reportů s filtrováním
 router.get('/', async (req, res) => {
     try {
         const { technicianId, clientId, fromDate, toDate, status } = req.query;
@@ -100,7 +100,10 @@ router.get('/', async (req, res) => {
 
         const reports = await Report.findAll({
             where: filters,
-            include: [Technician, Client],
+            include: [
+                { model: Technician, as: 'technician' },  // Přidání aliasu 'technician'
+                { model: Client, as: 'client', attributes: ['id', 'name', 'opCodes'] },
+            ],
         });
 
         res.status(200).json(reports);
@@ -109,11 +112,23 @@ router.get('/', async (req, res) => {
     }
 });
 
+
+
 // 3. Získání jednoho reportu
 router.get('/:id', async (req, res) => {
     try {
+        // Zajišťujeme, že klient je zahrnutý při získávání reportu
         const report = await Report.findByPk(req.params.id, {
-            include: [Client],
+            include: [
+                {
+                    model: Client,  // Zahrnutí modelu Client
+                    as: 'client',   // alias pro asociaci (musí odpovídat tomu v definici asociace)
+                },
+                {
+                    model: Technician,  // Zahrnutí technika do výstupu
+                    as: 'technician',  // Alias pro technika
+                }
+            ]
         });
 
         if (!report) {
@@ -122,9 +137,13 @@ router.get('/:id', async (req, res) => {
 
         res.status(200).json(report);
     } catch (error) {
+        console.error("Chyba při získávání reportu:", error);
         res.status(500).json({ message: 'Chyba při získávání reportu', error: error.message });
     }
 });
+
+
+
 
 // 4. Aktualizace reportu
 router.put('/:id', async (req, res) => {
@@ -286,8 +305,14 @@ router.post('/clients/:clientId/assign-op', async (req, res) => {
             return res.status(404).json({ message: 'Klient nenalezen' });
         }
 
+        // Kontrola duplicitního OP kódu
+        const existingOpCodes = client.opCodes || [];
+        if (existingOpCodes.includes(opCode)) {
+            return res.status(400).json({ message: 'Tento OP kód již byl klientovi přiřazen' });
+        }
+
         // Aktualizace OP kódů klienta
-        const updatedOpCodes = client.opCodes ? [...client.opCodes, opCode] : [opCode];
+        const updatedOpCodes = [...existingOpCodes, opCode];
         await client.update({ opCodes: updatedOpCodes });
 
         res.status(200).json({ message: 'OP kód byl úspěšně přiřazen', opCodes: updatedOpCodes });
@@ -296,6 +321,7 @@ router.post('/clients/:clientId/assign-op', async (req, res) => {
         res.status(500).json({ message: 'Chyba při přiřazování OP kódu', error: error.message });
     }
 });
+
 
 
 export default router;

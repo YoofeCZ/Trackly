@@ -9,7 +9,7 @@ import {
 import {
   EditOutlined, DeleteOutlined, FileTextOutlined, PlusOutlined, ProfileOutlined,
 } from '@ant-design/icons';
-import moment from 'moment';
+import dayjs from "dayjs";
 import { useLocation } from 'react-router-dom';
 import '../css/Technicians.css';
 
@@ -375,12 +375,12 @@ function Technicians() {
               onChange={(e) => setNewTask({ ...newTask, description: e.target.value })}
             />
           <Form.Item label="Datum splnění">
-  <DatePicker
-    showTime
-    value={newTask.dueDate ? moment(newTask.dueDate) : null}
-    onChange={(date) => setNewTask({ ...newTask, dueDate: date?.toISOString() })}
-    style={{ width: '100%' }}
-  />
+          <DatePicker
+  showTime
+  value={newTask.dueDate ? dayjs(newTask.dueDate) : null}
+  onChange={(date) => setNewTask({ ...newTask, dueDate: date?.toISOString() })}
+  style={{ width: '100%' }}
+/>
 </Form.Item>
 
 

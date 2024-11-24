@@ -10,6 +10,10 @@ import reportRoutes from './routes/reports.js';
 import taskRoutes from './routes/tasks.js';
 import warehouseRouter from './routes/warehouse.js';
 import superagent from 'superagent';
+import path from 'path';
+import userRoutes from './routes/users.js'; // Import routeru pro uživatele
+
+import './models/associations.js'; // Importujte asociace po definici modelů
 
 // Načtení proměnných prostředí
 dotenv.config();
@@ -27,11 +31,14 @@ app.use(cors({
 app.use(express.json()); // Middleware pro práci s JSON daty
 
 // Použití technických, klientských a report routes
+app.use('/api/Users', userRoutes);
 app.use('/api/technicians', technicianRoutes);
 app.use('/api/clients', clientRoutes);
 app.use('/api/reports', reportRoutes);
 app.use('/api/tasks', taskRoutes); // Použití /tasks route
 app.use('/api/warehouse', warehouseRouter); // Připojení skladu
+app.use('/uploads', express.static(path.join(process.cwd(), 'uploads')));
+
 
 // Proxy route pro výpočet vzdálenosti pomocí Google API
 app.get('/api/distance', async (req, res) => {
@@ -110,8 +117,9 @@ console.log('Parametr destinations:', req.query.destinations);
 
 
 // Synchronizace databáze
+// Synchronizace databáze
 sequelize.sync({ alter: true }) // Použijeme alter pro přidání nových tabulek bez mazání existujících dat
-  .then(() => {
+  .then(async () => {
     console.log('Databáze připojena a tabulky synchronizovány');
     app.listen(PORT, () => {
       console.log(`Server běží na portu: ${PORT}`);
