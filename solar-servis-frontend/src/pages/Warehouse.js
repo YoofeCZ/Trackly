@@ -2,6 +2,17 @@ import React, { useState, useEffect } from 'react';
 import { Table, Button, Modal, Form, Input, InputNumber, message } from 'antd';
 import axios from 'axios';
 
+
+let API_URL;
+
+if (window.location.hostname === 'localhost') {
+  API_URL = 'http://localhost:5000/api'; // Lokální prostředí
+} else if (window.location.hostname.startsWith('192.168')) {
+  API_URL = 'http://192.168.0.101:5000/api'; // Interní IP
+} else {
+  API_URL = 'http://188.175.32.34/api'; // Veřejná IP
+}
+
 const Warehouse = () => {
   const [materials, setMaterials] = useState([]);
   const [isModalVisible, setIsModalVisible] = useState(false);
@@ -10,7 +21,7 @@ const Warehouse = () => {
   // Načtení materiálů ze skladu
   const fetchMaterials = async () => {
     try {
-      const response = await axios.get('http://localhost:5000/api/warehouse');
+      const response = await axios.get(`${API_URL}/warehouse`);
       setMaterials(response.data);
     } catch (error) {
       message.error('Chyba při načítání skladu');
@@ -23,7 +34,7 @@ const Warehouse = () => {
 
   const handleAddMaterial = async (values) => {
     try {
-      const response = await axios.post('http://localhost:5000/api/warehouse', values);
+      const response = await axios.post(`${API_URL}/warehouse`, values);
       setMaterials([...materials, response.data]);
       message.success('Materiál byl úspěšně přidán!');
       setIsModalVisible(false);
@@ -35,7 +46,7 @@ const Warehouse = () => {
 
   const handleDeleteMaterial = async (id) => {
     try {
-      await axios.delete(`http://localhost:5000/api/warehouse/${id}`);
+      await axios.delete(`${API_URL}/warehouse/${id}`);
       setMaterials(materials.filter((material) => material.id !== id));
       message.success('Materiál byl úspěšně smazán!');
     } catch (error) {

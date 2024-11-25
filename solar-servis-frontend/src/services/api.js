@@ -2,11 +2,19 @@
 import axios from 'axios';
 import superagent from "superagent";
 
-const API_URL = 'http://localhost:5000/api'; // URL backendu
+let API_URL;
+
+if (window.location.hostname === 'localhost') {
+  API_URL = 'http://localhost:5000/api'; // Lokální prostředí
+} else if (window.location.hostname.startsWith('192.168')) {
+  API_URL = 'http://192.168.0.101:5000/api'; // Interní IP
+} else {
+  API_URL = 'http://188.175.32.34/api'; // Veřejná IP
+}
 
 // Funkce pro získání všech techniků
 export const getTechnicians = async () => {
-  const response = await fetch('http://localhost:5000/api/technicians');
+  const response = await fetch(`${API_URL}/technicians`);
   return response.json();
 };
 
@@ -106,7 +114,7 @@ export const createTechnician = async (technicianData) => {
 // Funkce pro získání reportu podle ID
 export const getReportById = async (id) => {
   try {
-    const response = await axios.get(`http://localhost:5000/api/reports/${id}`);
+    const response = await axios.get(`${API_URL}/reports/${id}`);
     return response.data;
   } catch (error) {
     console.error('Chyba při získávání reportu:', error);
@@ -151,7 +159,7 @@ export const getClients = async () => {
 export const createClient = async (clientData) => {
   try {
     console.log("Odesílám data do backendu:", clientData); // Přidáme logování
-    const response = await fetch('http://localhost:5000/api/clients', {
+    const response = await fetch(`${API_URL}/clients`, {
       method: 'POST',
       headers: {
         'Content-Type': 'application/json',
@@ -268,7 +276,7 @@ export const deleteTask = async (taskId) => {
 };
 
 export const updateClient = async (clientId, clientData) => {
-  const response = await fetch(`http://localhost:5000/api/clients/${clientId}`, { // Absolutní URL
+  const response = await fetch(`${API_URL}/clients/${clientId}`, { // Absolutní URL
       method: 'PUT',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify(clientData),
@@ -284,7 +292,7 @@ export const updateClient = async (clientId, clientData) => {
 
 
 export const deleteClient = async (id) => {
-  const response = await fetch(`http://localhost:5000/api/clients/${id}`, {
+  const response = await fetch(`${API_URL}/clients/${id}`, {
     method: 'DELETE',
   });
 
@@ -321,7 +329,7 @@ export const addWarehouseItem = async (item) => {
 // Načtení materiálů ze skladu
 export const fetchMaterialsFromWarehouse = async () => {
   try {
-      const response = await superagent.get("http://localhost:5000/api/warehouse");
+      const response = await superagent.get(`${API_URL}/warehouse`);
       return response.body;
   } catch (error) {
       console.error("Chyba při načítání materiálů ze skladu:", error);
@@ -334,7 +342,7 @@ export const fetchMaterialsFromWarehouse = async () => {
 export const updateWarehouseItem = async (id, data) => {
   try {
       const response = await superagent
-          .put(`http://localhost:5000/api/warehouse/${id}`)
+          .put(`${API_URL}/warehouse/${id}`)
           .send(data);
       return response.body;
   } catch (error) {

@@ -26,6 +26,15 @@ import Docxtemplater from "docxtemplater";
 import mammoth from "mammoth";
 import PizZip from "pizzip"; // Přidejte tento import
 
+let API_URL;
+
+if (window.location.hostname === 'localhost') {
+  API_URL = 'http://localhost:5000/api'; // Lokální prostředí
+} else if (window.location.hostname.startsWith('192.168')) {
+  API_URL = 'http://192.168.0.101:5000/api'; // Interní IP
+} else {
+  API_URL = 'http://188.175.32.34/api'; // Veřejná IP
+}
 
 
 const GOOGLE_MAPS_API_KEY = process.env.REACT_APP_GOOGLE_MAPS_API_KEY;
@@ -63,7 +72,7 @@ const ReportPage = () => {
 useEffect(() => {
   const fetchMaterialsFromWarehouse = async () => {
     try {
-      const response = await superagent.get("http://localhost:5000/api/warehouse");
+      const response = await superagent.get(`${API_URL}/warehouse`);
       setMaterials(response.body); // Načtení skladových materiálů
     } catch (error) {
       message.error("Chyba při načítání materiálů ze skladu.");
@@ -91,7 +100,7 @@ useEffect(() => {
   const fetchReports = async () => {
     setLoadingReports(true);
     try {
-      const response = await fetch("http://localhost:5000/api/reports");
+      const response = await fetch(`${API_URL}/reports`);
       const data = await response.json();
       console.log("Načtená data:", data); // Debug
       setOriginalReportList(data);
@@ -270,7 +279,7 @@ const handleCloseDetails = () => {
       }
 
       fetch(
-        `http://localhost:5000/api/distance?origins=${selectedPositions.from.lat},${selectedPositions.from.lng}&destinations=${selectedPositions.to.lat},${selectedPositions.to.lng}`
+        `${API_URL}/distance?origins=${selectedPositions.from.lat},${selectedPositions.from.lng}&destinations=${selectedPositions.to.lat},${selectedPositions.to.lng}`
       )
         .then((response) => response.json())
         .then((data) => {
@@ -300,7 +309,7 @@ const handleCloseDetails = () => {
 
   const handleDeleteReport = async (report) => {
     try {
-      await superagent.delete(`http://localhost:5000/api/reports/${report.id}`);
+      await superagent.delete(`${API_URL}/reports/${report.id}`);
       message.success("Report byl úspěšně smazán.");
       fetchReports(); // Aktualizace seznamu reportů
     } catch (error) {
@@ -604,7 +613,7 @@ const handleCloseDetails = () => {
                 message.warning("Tento OP kód již byl klientovi přiřazen.");
             } else {
                 await superagent
-                    .post(`http://localhost:5000/api/clients/${selectedClient.id}/assign-op`)
+                    .post(`${API_URL}/clients/${selectedClient.id}/assign-op`)
                     .send({ opCode: values.opCode });
                 message.success("OP kód byl úspěšně přiřazen klientovi.");
             }

@@ -7,6 +7,15 @@ import { Upload, Breadcrumb } from 'antd';
 import { PlusOutlined, UploadOutlined, DeleteOutlined, FolderOutlined, FileOutlined, DownloadOutlined  } from '@ant-design/icons';
 import { uploadClientFile } from '../services/api';
 
+let API_URL;
+
+if (window.location.hostname === 'localhost') {
+  API_URL = 'http://localhost:5000/api'; // Lokální prostředí
+} else if (window.location.hostname.startsWith('192.168')) {
+  API_URL = 'http://192.168.0.101:5000/api'; // Interní IP
+} else {
+  API_URL = 'http://188.175.32.34/api'; // Veřejná IP
+}
 
 const Clients = () => {
   const location = useLocation();
@@ -105,7 +114,7 @@ const handleShowFiles = async (client, path = '') => {
     setIsFileManagerVisible(true);
     setCurrentPath(path); // Nastavuje aktuální cestu správně
 
-    const response = await fetch(`http://localhost:5000/api/clients/${client.id}/files?path=${path}`);
+    const response = await fetch(`${API_URL}/clients/${client.id}/files?path=${path}`);
     const data = await response.json();
 
     if (Array.isArray(data.files)) {
@@ -185,7 +194,7 @@ const handleCreateFolder = async () => {
       cancelText: 'Ne',
       onOk: async () => {
         try {
-          await fetch(`http://localhost:5000/api/clients/${currentClient.id}/files`, {
+          await fetch(`${API_URL}/clients/${currentClient.id}/files`, {
             method: 'DELETE',
             headers: { 'Content-Type': 'application/json' },
             body: JSON.stringify({ path: file.path }),
