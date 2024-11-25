@@ -22,3 +22,17 @@
     }
   }
   
+/* Udržte pevnou výšku navbaru */
+.navbar-brand {
+    display: flex;
+    align-items: center; /* Vertikální centrování */
+    height: 60px; /* Nastavte výšku navbaru podle potřeby */
+  }
+  
+  .navbar-logo {
+    max-height: 110px; /* Maximální výška loga */
+    width: auto; /* Zachování poměru stran */
+    margin-top: -30px; /* Posun loga nahoru */
+  }
+  
+  

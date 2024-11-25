@@ -21,10 +21,11 @@ const Navbar = ({ onLogout }) => {
   return (
     <nav className="navbar navbar-expand-lg navbar-dark bg-primary">
       <div className="container-fluid">
-        {/* Logo nebo název aplikace */}
-        <Link to="/dashboard" className="navbar-brand">
-          Solar Servis
-        </Link>
+{/* Logo nebo název aplikace */}
+<Link to="/dashboard" className="navbar-brand">
+  <img src="/images/logo.png" alt="Solar Servis" className="navbar-logo" />
+</Link>
+
 
         {/* Tlačítko pro zobrazení/skrytí menu na menších obrazovkách */}
         <button
