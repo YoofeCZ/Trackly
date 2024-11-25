@@ -31,32 +31,70 @@ const authorizeRole = (role) => (req, res, next) => {
 router.post('/create', authenticateToken, authorizeRole('admin'), async (req, res) => {
   const { username, password, role } = req.body;
   try {
-      console.log("Původní heslo:", password);
-      const hashedPassword = await bcrypt.hash(password, 10); // Zajistěte, že je 10 shodné všude
-
-      console.log("Hashované heslo:", hashedPassword);
-      
-      const userRole = role || 'user';
-      const newUser = await User.create({ username, password: hashedPassword, role: userRole });
-      res.status(201).json(newUser);
+    const hashedPassword = await bcrypt.hash(password, 10);
+    const userRole = role || 'user';
+    const newUser = await User.create({ username, password: hashedPassword, role: userRole });
+    res.status(201).json(newUser);
   } catch (error) {
-      res.status(500).json({ message: 'Error creating user.', error: error.message });
+    res.status(500).json({ message: 'Error creating user.', error: error.message });
   }
 });
 
+// Změna hesla uživatele (pouze admin)
+router.put("/:id/password", authenticateToken, authorizeRole("admin"), async (req, res) => {
+  const { id } = req.params;
+  const { password } = req.body;
+
+  try {
+    const user = await User.findByPk(id);
+    if (!user) {
+      return res.status(404).json({ message: "User not found." });
+    }
+
+    const hashedPassword = await bcrypt.hash(password, 10);
+    user.password = hashedPassword;
+    await user.save();
+
+    res.status(200).json({ message: "Password updated successfully." });
+  } catch (error) {
+    res.status(500).json({ message: "Error updating password.", error: error.message });
+  }
+});
+
+// Smazání uživatele (pouze admin)
 router.delete('/:id', authenticateToken, authorizeRole('admin'), async (req, res) => {
   const { id } = req.params;
 
   try {
-      const user = await User.findByPk(id);
-      if (!user) {
-          return res.status(404).json({ message: 'User not found.' });
-      }
+    const user = await User.findByPk(id);
+    if (!user) {
+      return res.status(404).json({ message: 'User not found.' });
+    }
 
-      await user.destroy(); // Smazání uživatele
-      res.status(200).json({ message: `User with ID ${id} has been deleted.` });
+    await user.destroy();
+    res.status(200).json({ message: `User with ID ${id} has been deleted.` });
   } catch (error) {
-      res.status(500).json({ message: 'Error deleting user.', error: error.message });
+    res.status(500).json({ message: 'Error deleting user.', error: error.message });
+  }
+});
+
+// Změna role uživatele (pouze admin)
+router.put('/:id/role', authenticateToken, authorizeRole('admin'), async (req, res) => {
+  const { id } = req.params;
+  const { role } = req.body;
+
+  try {
+    const user = await User.findByPk(id);
+    if (!user) {
+      return res.status(404).json({ message: 'User not found.' });
+    }
+
+    user.role = role;
+    await user.save();
+
+    res.status(200).json({ message: `Role of user ${user.username} updated to ${role}.` });
+  } catch (error) {
+    res.status(500).json({ message: 'Error updating user role.', error: error.message });
   }
 });
 
@@ -64,30 +102,22 @@ router.delete('/:id', authenticateToken, authorizeRole('admin'), async (req, res
 router.post('/login', async (req, res) => {
   const { username, password } = req.body;
   try {
-      const user = await User.findOne({ where: { username } });
-      if (!user) {
-          console.log("Uživatel nenalezen:", username);
-          return res.status(404).json({ message: 'User not found.' });
-      }
+    const user = await User.findOne({ where: { username } });
+    if (!user) {
+      return res.status(404).json({ message: 'User not found.' });
+    }
 
-      console.log("Zadané heslo:", password);
-      console.log("Hashované heslo v DB:", user.password);
+    const isPasswordValid = await bcrypt.compare(password, user.password);
+    if (!isPasswordValid) {
+      return res.status(401).json({ message: 'Invalid credentials.' });
+    }
 
-      const isPasswordValid = await bcrypt.compare(password, user.password);
-      console.log("Výsledek ověření hesla:", isPasswordValid);
-
-      if (!isPasswordValid) {
-          return res.status(401).json({ message: 'Invalid credentials.' });
-      }
-
-      const token = jwt.sign({ id: user.id, role: user.role }, secretKey, { expiresIn: '1h' });
-      res.status(200).json({ token });
+    const token = jwt.sign({ id: user.id, role: user.role }, secretKey, { expiresIn: '1h' });
+    res.status(200).json({ token });
   } catch (error) {
-      res.status(500).json({ message: 'Error logging in.', error: error.message });
+    res.status(500).json({ message: 'Error logging in.', error: error.message });
   }
 });
-
-
 
 // Získání všech uživatelů (pouze admin)
 router.get('/all', authenticateToken, authorizeRole('admin'), async (req, res) => {

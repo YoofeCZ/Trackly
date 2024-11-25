@@ -60,20 +60,36 @@ export const createUser = async (userData, token) => {
 };
 
 
-// Získání všech uživatelů (pouze pro adminy)
-export const getUsers = async (token) => {
+// Získání všech uživatelů (pouze pro adminy)// Získání všech uživatelů (pouze pro adminy)
+export const getUsers = async () => {
+  const token = localStorage.getItem("token"); // Načti token z localStorage
+  if (!token) {
+    throw new Error("Přístup odepřen: chybí token.");
+  }
+
   try {
     const response = await axios.get(`${API_URL}/users/all`, {
       headers: {
-        Authorization: `Bearer ${token}`,
+        Authorization: `Bearer ${token}`, // Ověření přes Bearer token
       },
     });
     return response.data;
   } catch (error) {
-    console.error('Chyba při získávání uživatelů:', error.response?.data || error.message);
+    console.error(
+      "Chyba při získávání uživatelů:",
+      error.response?.data || error.message
+    );
+
+    // Pokud je token neplatný, odhlásíme uživatele
+    if (error.response?.status === 403) {
+      localStorage.removeItem("token");
+      window.location.reload(); // Obnovíme stránku, což způsobí přesměrování na login
+    }
+
     throw error;
   }
 };
+
 
 // Funkce pro vytvoření nové složky pro klienta
 export const createClientFolder = async (clientId, folderPath) => {
@@ -363,3 +379,104 @@ export const deleteWarehouseItem = async (id) => {
     throw error;
   }
 };
+
+
+// Aktualizace hesla uživatele (pouze admin)
+export const updateUserPassword = async (userId, newPassword, token) => {
+  if (!userId || !newPassword || !token) {
+    throw new Error("Chybí userId, nové heslo nebo token.");
+  }
+
+  try {
+    const response = await axios.put(
+      `${API_URL}/users/${userId}/password`, // Správná cesta
+      { password: newPassword },
+      {
+        headers: { Authorization: `Bearer ${token}` },
+      }
+    );
+    return response.data;
+  } catch (error) {
+    console.error("Chyba při aktualizaci hesla uživatele:", error.response?.data || error.message);
+    throw error;
+  }
+};
+
+// Funkce pro získání aktuálních nastavení
+export const getSettings = async () => {
+  try {
+    const response = await axios.get(`${API_URL}/settings`);
+    return response.data;
+  } catch (error) {
+    console.error('Chyba při získávání nastavení:', error);
+    throw error;
+  }
+};
+
+// Funkce pro aktualizaci nastavení
+export const updateSettings = async (settingsData) => {
+  try {
+    const response = await axios.put(`${API_URL}/settings`, settingsData, {
+      headers: { "Content-Type": "application/json" },
+    });
+    return response.data;
+  } catch (error) {
+    console.error('Chyba při aktualizaci nastavení:', error);
+    throw error;
+  }
+};
+
+// Funkce pro vytvoření nových nastavení
+export const createSettings = async (defaultSettings) => {
+  try {
+    const response = await axios.post(`${API_URL}/settings`, defaultSettings, {
+      headers: { "Content-Type": "application/json" },
+    });
+    return response.data;
+  } catch (error) {
+    console.error('Chyba při vytváření nastavení:', error);
+    throw error;
+  }
+};
+
+// Smazání uživatele
+export const deleteUser = async (userId) => {
+  const token = localStorage.getItem("token");
+  if (!token) {
+    throw new Error("Přístup odepřen: chybí token.");
+  }
+
+  try {
+    const response = await axios.delete(`${API_URL}/users/${userId}`, {
+      headers: { Authorization: `Bearer ${token}` },
+    });
+    return response.data;
+  } catch (error) {
+    console.error("Chyba při mazání uživatele:", error.response?.data || error.message);
+    throw error;
+  }
+};
+
+
+// Aktualizace role uživatele
+export const updateUserRole = async (userId, newRole) => {
+  const token = localStorage.getItem("token");
+  if (!token) {
+    throw new Error("Přístup odepřen: chybí token.");
+  }
+
+  try {
+    const response = await axios.put(
+      `${API_URL}/users/${userId}/role`,
+      { role: newRole },
+      {
+        headers: { Authorization: `Bearer ${token}` },
+      }
+    );
+    return response.data;
+  } catch (error) {
+    console.error("Chyba při aktualizaci role uživatele:", error.response?.data || error.message);
+    throw error;
+  }
+};
+

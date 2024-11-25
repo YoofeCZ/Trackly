@@ -1,0 +1,24 @@
+.navbar-toggler {
+    border: none;
+    cursor: pointer;
+  }
+  
+  .collapse.show {
+    display: block !important;
+  }
+  
+  .navbar-nav .nav-item {
+    margin-bottom: 0.5rem;
+  }
+  
+  .navbar-nav .nav-link {
+    font-size: 1rem;
+    padding: 0.5rem 1rem;
+  }
+  
+  @media (max-width: 576px) {
+    .navbar-nav {
+      text-align: center;
+    }
+  }
+  

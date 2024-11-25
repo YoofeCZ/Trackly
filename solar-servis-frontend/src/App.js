@@ -8,22 +8,38 @@ import Reports from "./pages/Reports";
 import Tasks from "./pages/Tasks";
 import Warehouse from "./pages/Warehouse";
 import Login from "./pages/Login";
-import { loginUser } from './services/api';  // Ujistěte se, že máte tuto funkci v api.js pro přihlášení
-import CreateUser from './pages/CreateUser';
+import CreateUser from "./pages/CreateUser";
+import UserManagement from "./pages/UserManagement"; // Import komponenty
+import { loginUser } from "./services/api"; // Import API funkce
+import "bootstrap/dist/css/bootstrap.min.css";
+import "bootstrap/dist/js/bootstrap.bundle.min.js";
+import SettingsPage from "./pages/SettingsPage"; // Import nové stránky
+import "@fortawesome/fontawesome-free/css/all.min.css";
+
 
 function App() {
   const [loading, setLoading] = useState(false);
   const [isAuthenticated, setIsAuthenticated] = useState(false);
+  const [userRole, setUserRole] = useState(null); // Stav pro roli uživatele
   const location = useLocation();
 
-  // Ověření tokenu v localStorage při prvním načtení
+  // Ověření tokenu a načtení role uživatele při načtení aplikace
   useEffect(() => {
     const token = localStorage.getItem("token");
     if (token) {
-      setIsAuthenticated(true);
+      try {
+        const decodedToken = JSON.parse(atob(token.split(".")[1])); // Dekódování JWT
+        setIsAuthenticated(true);
+        setUserRole(decodedToken.role); // Nastavení role uživatele
+      } catch (error) {
+        console.error("Chyba při dekódování tokenu:", error);
+        setIsAuthenticated(false);
+        setUserRole(null);
+      }
     }
   }, []);
 
+  // Zobrazení načítacího indikátoru při přechodu mezi stránkami
   useEffect(() => {
     setLoading(true);
     const timer = setTimeout(() => setLoading(false), 500);
@@ -32,17 +48,19 @@ function App() {
 
   const handleLogin = async (username, password) => {
     try {
-      // Volání API pro přihlášení
-      const { token } = await loginUser(username, password);
+      const { token } = await loginUser(username, password); // Přihlášení přes API
       localStorage.setItem("token", token); // Uložení tokenu do localStorage
+      const decodedToken = JSON.parse(atob(token.split(".")[1]));
       setIsAuthenticated(true);
+      setUserRole(decodedToken.role); // Nastavení role po přihlášení
     } catch (error) {
-      console.error('Chyba při přihlášení:', error.message);
+      console.error("Chyba při přihlášení:", error.message);
     }
   };
 
   const handleLogout = () => {
     setIsAuthenticated(false);
+    setUserRole(null);
     localStorage.removeItem("token"); // Odstranění tokenu z localStorage
   };
 
@@ -65,12 +83,6 @@ function App() {
               isAuthenticated ? <Navigate to="/dashboard" /> : <Login onLogin={handleLogin} />
             }
           />
-          <Route
-  path="/create-user"
-  element={
-    isAuthenticated ? <CreateUser /> : <Navigate to="/login" />
-  }
-/>
           {/* Přesměrování na login při přístupu na root */}
           <Route path="/" element={<Navigate to="/login" />} />
           {/* Chráněné stránky */}
@@ -102,6 +114,32 @@ function App() {
             path="/warehouse"
             element={isAuthenticated ? <Warehouse /> : <Navigate to="/login" />}
           />
+          {/* Stránky přístupné pouze adminům */}
+          <Route
+            path="/create-user"
+            element={
+              isAuthenticated && userRole === "admin" ? (
+                <CreateUser />
+              ) : (
+                <Navigate to="/login" />
+              )
+            }
+          />
+          <Route
+            path="/user-management"
+            element={
+              isAuthenticated && userRole === "admin" ? (
+                <UserManagement />
+              ) : (
+                <Navigate to="/login" />
+              )
+            }
+          />
+            {/* Další existující cesty */}
+  <Route
+    path="/settings"
+    element={isAuthenticated ? <SettingsPage /> : <Navigate to="/login" />}
+  />
         </Routes>
       )}
     </>

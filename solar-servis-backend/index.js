@@ -13,6 +13,8 @@ import superagent from 'superagent';
 import path from 'path';
 import userRoutes from './routes/users.js'; // Import routeru pro uživatele
 import User from './models/User.js'; // Import modelu uživatele
+import Settings from './models/Settings.js'; // Import modelu Settings
+import settingsRouter from './routes/settings.js'; // Import routeru nastavení
 
 import './models/associations.js'; // Importujte asociace po definici modelů
 
@@ -39,6 +41,7 @@ app.use('/api/reports', reportRoutes);
 app.use('/api/tasks', taskRoutes); // Použití /tasks route
 app.use('/api/warehouse', warehouseRouter); // Připojení skladu
 app.use('/uploads', express.static(path.join(process.cwd(), 'uploads')));
+app.use('/api/settings', settingsRouter); // Připojení routeru k API
 
 
 // Proxy route pro výpočet vzdálenosti pomocí Google API
@@ -132,11 +135,30 @@ const createAdminUser = async () => {
   }
 };
 
+const createDefaultSettings = async () => {
+  try {
+    const existingSettings = await Settings.findOne();
+    if (!existingSettings) {
+      await Settings.create({
+        hourlyRate: 1500, // Cena za hodinu
+        kilometerRate: 8, // Cena za kilometr
+        travelTimeRate: 100, // Cena za hodinu cestování
+      });
+      console.log('Výchozí nastavení byla vytvořena.');
+    } else {
+      console.log('Výchozí nastavení již existují.');
+    }
+  } catch (error) {
+    console.error('Chyba při vytváření výchozích nastavení:', error);
+  }
+};
 // Synchronizace databáze
 sequelize.sync({ alter: true }) // Použijeme alter pro přidání nových tabulek bez mazání existujících dat
   .then(async () => {
     console.log('Databáze připojena a tabulky synchronizovány');
 
+    // Vytvoření výchozích nastavení
+    await createDefaultSettings();
     // Vytvoření admin uživatele
     await createAdminUser();
 

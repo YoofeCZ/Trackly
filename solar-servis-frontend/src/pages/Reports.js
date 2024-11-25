@@ -65,8 +65,25 @@ const ReportPage = () => {
   const [chargedCost, setChargedCost] = useState(0); // Náklady účtované zákazníkovi
   const [unchargedCost, setUnchargedCost] = useState(0); // Neúčtované náklady
   const [originalReportList, setOriginalReportList] = useState([]); // Původní seznam reportů
+  const [settings, setSettings] = useState({
+    hourlyRate: 1500, // Výchozí hodnota
+    kilometerRate: 8, // Výchozí hodnota
+    travelTimeRate: 100, // Výchozí hodnota
+  });
 
-
+  useEffect(() => {
+    const fetchSettings = async () => {
+      try {
+        const response = await fetch(`${API_URL}/settings`);
+        const data = await response.json();
+        setSettings(data); // Uložení nastavení do stavu
+      } catch (error) {
+        console.error("Chyba při načítání nastavení:", error);
+        message.error("Nepodařilo se načíst nastavení. Používají se výchozí hodnoty.");
+      }
+    };
+    fetchSettings();
+  }, []);
 
 //Fetch material
 useEffect(() => {
@@ -238,24 +255,21 @@ const handleCloseDetails = () => {
   
   const handleCalculateRouteAndCosts = async () => {
     try {
-      const travelData = await handleCalculateRoute(); // Počkej na výpočet trasy
+      const travelData = await handleCalculateRoute();
       if (travelData) {
         const { distance, duration } = travelData;
-        const travelCostValue = (distance * 2 * 8) + ((duration * 2) / 60) * 100; // 8 Kč/km a 100 Kč/hod, obojí krát 2
-        setTravelCost(travelCostValue); // Nastaví cestovní náklady
+        const travelCostValue = (distance * settings.kilometerRate) + (duration / 60) * settings.travelTimeRate; // Použití dynamických hodnot
+        setTravelCost(travelCostValue);
         setTravelResult({
-          distance: distance * 2, // Vzdálenost krát 2
-          duration: duration * 2, // Čas krát 2
-        }); // Aktualizuje výsledky trasy
-        console.log("Updated travelResult:", {
-          distance: distance * 2,
-          duration: duration * 2,
+          distance,
+          duration,
         });
       }
     } catch (error) {
       message.error("Chyba: " + error);
     }
   };
+  
   
   
 
@@ -326,13 +340,13 @@ const handleCloseDetails = () => {
   
       if (arrival.isValid() && leave.isValid() && leave.isAfter(arrival)) {
         const durationInMinutes = leave.diff(arrival, "minute");
-        const cost = (durationInMinutes / 60) * hourlyRate; // Výpočet nákladů
-        setTotalWorkCost(cost); // Nastavte vypočtenou hodnotu do stavu
+        const cost = (durationInMinutes / 60) * settings.hourlyRate; // Použití dynamického nastavení
+        setTotalWorkCost(cost);
         return;
       }
     }
-    setTotalWorkCost(0); // Pokud časy nejsou validní, nastaví 0
-  }, [form, hourlyRate]);
+    setTotalWorkCost(0);
+  }, [form, settings.hourlyRate]);
   
   
 

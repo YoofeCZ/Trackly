@@ -6,6 +6,8 @@ import reportWebVitals from "./reportWebVitals";
 import { BrowserRouter as Router } from "react-router-dom";
 import "bootstrap/dist/css/bootstrap.min.css"; // Styly pro Bootstrap
 import "tabler-react/dist/Tabler.css"; // Styly pro Tabler
+import "bootstrap/dist/js/bootstrap.bundle.min.js";
+
 
 const root = ReactDOM.createRoot(document.getElementById("root"));
 
