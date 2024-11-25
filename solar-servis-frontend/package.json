@@ -11,6 +11,7 @@
   "author": "",
   "license": "ISC",
   "dependencies": {
-    "mui-file-manager": "^2.0.0"
+    "mui-file-manager": "^2.0.0",
+    "solar-servis-frontend": "file:"
   }
 }

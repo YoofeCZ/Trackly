@@ -12,6 +12,7 @@ import warehouseRouter from './routes/warehouse.js';
 import superagent from 'superagent';
 import path from 'path';
 import userRoutes from './routes/users.js'; // Import routeru pro uživatele
+import User from './models/User.js'; // Import modelu uživatele
 
 import './models/associations.js'; // Importujte asociace po definici modelů
 
@@ -114,13 +115,32 @@ console.log('Parametr destinations:', req.query.destinations);
   }
 });
 
+const createAdminUser = async () => {
+  try {
+    // Zkontroluj, jestli uživatel existuje
+    const existingUser = await User.findOne({ where: { username: 'mracek.d' } });
+    if (existingUser) {
+      console.log('Admin uživatel již existuje, přeskočeno.');
+      return;
+    }
 
+    // Vytvoř nového uživatele
+    const adminUser = await User.createUser('mracek.d', 'Udrzbar654456!', 'admin');
+    console.log('Admin uživatel úspěšně vytvořen:', adminUser.username);
+  } catch (error) {
+    console.error('Chyba při vytváření admin uživatele:', error);
+  }
+};
 
-// Synchronizace databáze
 // Synchronizace databáze
 sequelize.sync({ alter: true }) // Použijeme alter pro přidání nových tabulek bez mazání existujících dat
   .then(async () => {
     console.log('Databáze připojena a tabulky synchronizovány');
+
+    // Vytvoření admin uživatele
+    await createAdminUser();
+
+    // Spuštění serveru
     app.listen(PORT, () => {
       console.log(`Server běží na portu: ${PORT}`);
     });
@@ -128,8 +148,3 @@ sequelize.sync({ alter: true }) // Použijeme alter pro přidání nových tabul
   .catch((error) => {
     console.error('Chyba při připojování k databázi:', error);
   });
-
-// Základní trasa pro ověření funkčnosti serveru
-app.get('/', (req, res) => {
-  res.send('Solar Servis API běží...');
-});
