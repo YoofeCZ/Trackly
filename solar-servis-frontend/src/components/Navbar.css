@@ -1,38 +1,181 @@
+/* Celkový styl navbaru */
+.custom-navbar {
+  background: linear-gradient(90deg, #007bff, #0056b3);
+  color: #fff;
+  padding: 0.5rem 1rem;
+  box-shadow: 0 4px 8px rgba(0, 0, 0, 0.1);
+  transition: all 0.3s ease-in-out;
+  height: 60px; /* Pevná výška navbaru */
+  display: flex;
+  align-items: center; /* Centrovaní obsahu vertikálně */
+  justify-content: space-between; /* Zajistí oddělení loga a navigačních odkazů */
+}
+
+/* Logo */
+.navbar-logo {
+  max-height: 80px; /* Maximální výška loga */
+  width: auto;
+  margin-right: 20px; /* Odsazení loga od navigačního menu */
+  transition: transform 0.3s ease-in-out;
+}
+
+.navbar-logo:hover {
+  transform: scale(1.1); /* Zvýraznění při hoveru */
+}
+
+
+.brand-name {
+  font-size: 1.5rem;
+  font-weight: bold;
+  color: #fff;
+  transition: all 0.3s ease-in-out;
+}
+
+.brand-name:hover {
+  color: #ffcc33; /* Jemný kontrastní zlatý odstín */
+  text-shadow: 0px 0px 8px rgba(255, 204, 51, 0.8);
+}
+
+/* Navigační odkazy */
+.nav-link {
+  font-size: 1rem;
+  font-weight: 500;
+  color: #fff !important; /* Zajistí bílou barvu textu */
+  margin: 0 5px;
+  position: relative;
+  transition: all 0.3s ease-in-out;
+}
+
+.nav-link:hover {
+  color: #ffcc33 !important; /* Jemný kontrastní zlatý odstín */
+  text-shadow: 0px 0px 8px rgba(255, 204, 51, 0.8);
+}
+
+.nav-link::after {
+  content: "";
+  position: absolute;
+  width: 0;
+  height: 2px;
+  background: #ffcc33; /* Zlatý podtrhávací efekt */
+  bottom: -2px;
+  left: 50%;
+  transition: all 0.3s ease-in-out;
+  transform: translateX(-50%);
+}
+
+.nav-link:hover::after {
+  width: 100%;
+}
+
+/* Toggler button */
 .navbar-toggler {
-    border: none;
-    cursor: pointer;
+  border: none;
+  background-color: rgba(255, 255, 255, 0.3);
+  transition: transform 0.3s ease-in-out, background-color 0.3s ease-in-out;
+}
+
+.navbar-toggler-icon {
+  background-color: #fff;
+  height: 3px;
+  width: 25px;
+  display: block;
+  margin: 5px auto;
+  border-radius: 3px;
+  transition: all 0.3s ease-in-out;
+}
+
+/* Dropdown menu */
+.collapse.show {
+  animation: fadeIn 0.3s ease-in-out;
+}
+
+@keyframes fadeIn {
+  from {
+    opacity: 0;
+    transform: translateY(-10px);
   }
-  
-  .collapse.show {
-    display: block !important;
+  to {
+    opacity: 1;
+    transform: translateY(0);
   }
-  
-  .navbar-nav .nav-item {
-    margin-bottom: 0.5rem;
+}
+
+/* Tlačítko nastavení */
+.settings-button {
+  background-color: #b70707 !important; /* Zajistí průhledné pozadí */
+  color: #fff !important; /* Výchozí barva textu nastavena na bílou */
+  padding: 8px 12px;
+  border-radius: 5px;
+  font-size: 1.2rem;
+  transition: all 0.3s ease;
+}
+
+.settings-button:hover {
+  background-color: #e40d0d !important; /* Jemný kontrastní hover barva */
+  color: #fff !important; /* Bílé písmo při hoveru */
+  transform: scale(1.1);
+  box-shadow: 0 4px 8px rgba(0, 0, 0, 0.3);
+}
+
+/* Tlačítko odhlásit se */
+.logout-button {
+  background-color: #b70707 !important; /* Transparentní pozadí */
+  color: #fff !important; /* Výchozí barva textu nastavena na bílou */
+  padding: 8px 15px;
+  border: 2px solid #b70707 !important; /* Bílý okraj */
+  border-radius: 5px;
+  font-weight: bold;
+  transition: all 0.3s ease;
+}
+
+.logout-button:hover {
+  background-color: #e40d0d !important; /* Jemná červená pro hover */
+  color: #fff !important; /* Bílé písmo při hoveru */
+  transform: scale(1.1);
+  box-shadow: 0 4px 8px rgba(255, 69, 0, 0.3);
+}
+
+
+/* Animace pro hover efekt všech tlačítek */
+.btn {
+  transition: all 0.3s ease-in-out;
+}
+
+.btn:hover {
+  transform: scale(1.05);
+}
+
+/* Responzivní úpravy */
+@media (max-width: 768px) {
+  .navbar-nav {
+    text-align: center;
   }
-  
-  .navbar-nav .nav-link {
-    font-size: 1rem;
-    padding: 0.5rem 1rem;
+
+  .nav-item {
+    margin: 0.5rem 0;
   }
-  
-  @media (max-width: 576px) {
-    .navbar-nav {
-      text-align: center;
-    }
+
+  .brand-name {
+    font-size: 1.2rem;
   }
-  
-/* Udržte pevnou výšku navbaru */
-.navbar-brand {
-    display: flex;
-    align-items: center; /* Vertikální centrování */
-    height: 60px; /* Nastavte výšku navbaru podle potřeby */
-  }
-  
-  .navbar-logo {
-    max-height: 110px; /* Maximální výška loga */
-    width: auto; /* Zachování poměru stran */
-    margin-top: -30px; /* Posun loga nahoru */
-  }
-  
-  
+}
+.navbar-nav .nav-link {
+  color: #fff !important; /* Přepsání Bootstrap stylů */
+}
+
+/* Aktivní odkaz */
+.nav-link.active {
+  color: #fff387 !important; /* Změní barvu textu na zlatou */
+  font-weight: bold; /* Zvětší tučnost textu */
+}
+
+.settings-button.active {
+  background-color: #fff387 !important;
+  color: #0056b3 !important;
+  font-weight: bold;
+}
+
+.logout-button.active {
+  background-color: #fff387 !important;
+  color: #0056b3 !important;
+}

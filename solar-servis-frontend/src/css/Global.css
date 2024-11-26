@@ -1,0 +1,327 @@
+/* Obecné nastavení */
+body {
+  background-color: #f0f2f5;
+  font-family: "Roboto", Arial, sans-serif;
+  color: #333;
+  margin: 0;
+  padding: 0;
+}
+
+h1,
+h2,
+h3,
+h4,
+h5,
+h6 {
+  font-weight: 500;
+  color: #1f1f1f;
+}
+
+p {
+  color: #6c757d;
+  margin: 0;
+}
+
+.container {
+  max-width: 1200px;
+  margin: 0 auto;
+  padding: 20px;
+}
+
+/* Karty (Cards) */
+.card {
+  background: #ffffff;
+  border-radius: 10px;
+  box-shadow: 0 4px 10px rgba(0, 0, 0, 0.05);
+  padding: 20px;
+  transition: transform 0.2s, box-shadow 0.2s;
+}
+
+.card:hover {
+  transform: translateY(-5px);
+  box-shadow: 0 8px 20px rgba(0, 0, 0, 0.1);
+}
+
+.card h2 {
+  font-size: 2rem;
+  margin: 0;
+  color: #333;
+}
+
+.card p {
+  margin-top: 10px;
+  color: #6c757d;
+}
+
+/* Statistiky */
+.stat-card {
+  text-align: center;
+  background: #fff;
+  border-radius: 10px;
+  padding: 20px;
+}
+
+.stat-card:hover {
+  transform: translateY(-5px);
+  box-shadow: 0 8px 20px rgba(0, 0, 0, 0.1);
+}
+
+.stat-card .icon {
+  font-size: 3rem;
+  color: #1890ff;
+  margin-bottom: 10px;
+}
+
+.stat-card .value {
+  font-size: 2.5rem;
+  font-weight: bold;
+  color: #1f1f1f;
+}
+
+.stat-card .label {
+  font-size: 1rem;
+  color: #6c757d;
+}
+
+/* Seznam posledních položek */
+.list-card {
+  background: #fff;
+  border-radius: 10px;
+  padding: 20px;
+}
+
+.recent-list {
+  list-style: none;
+  padding: 0;
+  margin: 0;
+}
+
+.recent-list li {
+  padding: 10px;
+  border-bottom: 1px solid #f0f0f0;
+  color: #1f1f1f;
+}
+
+.recent-list li:last-child {
+  border-bottom: none;
+}
+
+/* Tabulky */
+.table-card {
+  background: #fff;
+  border-radius: 10px;
+  padding: 20px;
+}
+
+.ant-table {
+  background: #fff;
+}
+
+.ant-table-thead > tr > th {
+  background: #fafafa;
+  color: #1f1f1f;
+  font-weight: bold;
+  padding: 12px;
+}
+
+.ant-table-tbody > tr > td {
+  color: #595959;
+  padding: 12px;
+}
+
+.ant-table-tbody > tr:hover > td {
+  background: #e6f7ff;
+}
+
+/* Grafy */
+.chart-card {
+  background: #fff;
+  border-radius: 10px;
+  padding: 20px;
+}
+
+.chart-card h4 {
+  margin-bottom: 20px;
+  font-size: 1.25rem;
+  color: #1f1f1f;
+}
+
+/* Historie objednávek */
+.order-history {
+  list-style: none;
+  padding: 0;
+  margin: 0;
+}
+
+.order-history li {
+  display: flex;
+  align-items: center;
+  margin-bottom: 10px;
+  padding: 15px;
+  border-radius: 10px;
+  background: #ffffff;
+  box-shadow: 0 2px 5px rgba(0, 0, 0, 0.05);
+}
+
+.order-history li .icon {
+  font-size: 1.5rem;
+  margin-right: 15px;
+  color: #28a745;
+}
+
+.order-history li .details {
+  flex-grow: 1;
+}
+
+.order-history li .details h5 {
+  margin: 0;
+  font-size: 1rem;
+  color: #333;
+}
+
+.order-history li .details p {
+  margin: 0;
+  font-size: 0.85rem;
+  color: #6c757d;
+}
+
+/* Tabs */
+.tabs {
+  display: flex;
+  justify-content: flex-start;
+  margin-bottom: 20px;
+  border-bottom: 2px solid #e8e8e8;
+}
+
+.tabs .tab {
+  padding: 10px 20px;
+  font-size: 1rem;
+  font-weight: 500;
+  color: #6c757d;
+  cursor: pointer;
+  transition: color 0.3s, border-bottom 0.3s;
+}
+
+.tabs .tab:hover,
+.tabs .tab.active {
+  color: #1890ff;
+  border-bottom: 2px solid #1890ff;
+}
+
+/* Responzivní styly */
+@media (max-width: 768px) {
+  .stat-card .icon {
+    font-size: 2rem;
+  }
+
+  .stat-card .value {
+    font-size: 1.8rem;
+  }
+
+  .stat-card .label {
+    font-size: 0.9rem;
+  }
+
+  .table th,
+  .table td {
+    font-size: 0.9rem;
+    padding: 10px;
+  }
+
+  .order-history li {
+    flex-direction: column;
+    align-items: flex-start;
+  }
+
+  .order-history li .details {
+    margin-top: 5px;
+  }
+}
+
+/* Přidané styly pro profesionální vzhled */
+/* Barvy grafů */
+.chartjs-render-monitor {
+  max-height: 400px;
+}
+
+/* Styl pro nadpisy grafů */
+.chart-card .ant-card-head-title {
+  font-size: 1.25rem;
+  font-weight: 500;
+  color: #1f1f1f;
+}
+
+/* Upravené barvy pro grafy */
+.chartjs-render-monitor {
+  background: #fff;
+  border-radius: 10px;
+  padding: 20px;
+}
+
+/* Tooltipy v grafech */
+.chartjs-tooltip {
+  background: rgba(0, 0, 0, 0.7);
+  color: #fff;
+  border-radius: 4px;
+  padding: 6px 10px;
+  font-size: 0.9rem;
+}
+
+/* Legenda grafů */
+.chart-legend {
+  display: flex;
+  justify-content: center;
+  margin-top: 10px;
+}
+
+.chart-legend li {
+  display: flex;
+  align-items: center;
+  margin-right: 15px;
+}
+
+.chart-legend span {
+  display: inline-block;
+  width: 12px;
+  height: 12px;
+  margin-right: 5px;
+  border-radius: 2px;
+}
+
+/* Styly pro ikony v kartách */
+.stat-card .icon {
+  font-size: 3rem;
+  color: #1890ff;
+  margin-bottom: 10px;
+}
+
+/* Animace při najetí myší na karty */
+.card:hover {
+  transform: translateY(-5px);
+  box-shadow: 0 8px 20px rgba(0, 0, 0, 0.1);
+}
+
+/* Upravené barvy pro tlačítka a odkazy */
+a {
+  color: #1890ff;
+  transition: color 0.3s;
+}
+
+a:hover {
+  color: #40a9ff;
+}
+
+/* Tlačítka */
+.button {
+  background-color: #1890ff;
+  color: #fff;
+  border: none;
+  border-radius: 4px;
+  padding: 10px 20px;
+  cursor: pointer;
+  transition: background-color 0.3s;
+}
+
+.button:hover {
+  background-color: #40a9ff;
+}

@@ -16,6 +16,8 @@ import "bootstrap/dist/css/bootstrap.min.css";
 import "bootstrap/dist/js/bootstrap.bundle.min.js";
 import SettingsPage from "./pages/SettingsPage"; // Import nové stránky
 import "@fortawesome/fontawesome-free/css/all.min.css";
+import './css/Global.css';
+
 
 function App() {
   const [loading, setLoading] = useState(false);
