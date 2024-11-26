@@ -5,10 +5,11 @@
   padding: 0.5rem 1rem;
   box-shadow: 0 4px 8px rgba(0, 0, 0, 0.1);
   transition: all 0.3s ease-in-out;
-  height: 60px; /* Pevná výška navbaru */
+  min-height: 60px;
   display: flex;
   align-items: center; /* Centrovaní obsahu vertikálně */
   justify-content: space-between; /* Zajistí oddělení loga a navigačních odkazů */
+  
 }
 
 /* Logo */
@@ -146,7 +147,7 @@
 }
 
 /* Responzivní úpravy */
-@media (max-width: 768px) {
+@media (max-width: 992px) {
   .navbar-nav {
     text-align: center;
   }
