@@ -15,6 +15,8 @@ import userRoutes from './routes/users.js'; // Import routeru pro uživatele
 import User from './models/User.js'; // Import modelu uživatele
 import Settings from './models/Settings.js'; // Import modelu Settings
 import settingsRouter from './routes/settings.js'; // Import routeru nastavení
+import systemsRoutes from './routes/systems.js';
+import componentsRouter from './routes/components.js';
 
 import './models/associations.js'; // Importujte asociace po definici modelů
 
@@ -42,6 +44,8 @@ app.use('/api/tasks', taskRoutes); // Použití /tasks route
 app.use('/api/warehouse', warehouseRouter); // Připojení skladu
 app.use('/uploads', express.static(path.join(process.cwd(), 'uploads')));
 app.use('/api/settings', settingsRouter); // Připojení routeru k API
+app.use('/api/systems', systemsRoutes); // Připojení routes
+app.use('/api/components', componentsRouter);
 
 
 // Proxy route pro výpočet vzdálenosti pomocí Google API

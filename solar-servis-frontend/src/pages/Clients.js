@@ -3,9 +3,10 @@ import React, { useState, useEffect } from 'react';
 import { Table, Button, Modal, Form, Input, Typography, message } from 'antd';
 import { getClients, createClient, createClientFolder,deleteClient, updateClient } from '../services/api';
 import { useLocation } from 'react-router-dom';
-import { Upload, Breadcrumb } from 'antd';
+import { Upload, Breadcrumb, Select } from 'antd';
 import { PlusOutlined, UploadOutlined, DeleteOutlined, FolderOutlined, FileOutlined, DownloadOutlined  } from '@ant-design/icons';
 import { uploadClientFile } from '../services/api';
+import { getSystems } from '../services/api';
 
 let API_URL;
 
@@ -32,6 +33,8 @@ const Clients = () => {
   const [isFileManagerVisible, setIsFileManagerVisible] = useState(false);
   const [currentClient, setCurrentClient] = useState(null);
   const [isFolderModalOpen, setIsFolderModalOpen] = useState(false);
+  const [systems, setSystems] = useState([]);
+
 const [newFolderName, setNewFolderName] = useState('');
 
   const [newClient, setNewClient] = useState({  
@@ -42,6 +45,19 @@ const [newFolderName, setNewFolderName] = useState('');
     company: '',
     opCode: '', // Přidání pole opCode
   });
+
+  useEffect(() => {
+    const fetchSystems = async () => {
+      try {
+        const systemsData = await getSystems();
+        setSystems(systemsData);
+      } catch (error) {
+        console.error('Chyba při načítání systémů:', error);
+      }
+    };
+  
+    fetchSystems();
+  }, []);
 
   useEffect(() => {
     const fetchClients = async () => {
@@ -372,15 +388,33 @@ const handleCreateFolder = async () => {
       />
     </Form.Item>
     <Form.Item label="Adresa">
-      <Input
-        value={currentClient?.address || newClient.address}
-        onChange={(e) =>
-          currentClient
-            ? setCurrentClient({ ...currentClient, address: e.target.value })
-            : setNewClient({ ...newClient, address: e.target.value })
-        }
-      />
-    </Form.Item>
+  <Input
+    value={currentClient?.address || newClient.address}
+    onChange={(e) =>
+      currentClient
+        ? setCurrentClient({ ...currentClient, address: e.target.value })
+        : setNewClient({ ...newClient, address: e.target.value })
+    }
+  />
+</Form.Item>
+
+<Form.Item label="Systém" required>
+  <Select
+    value={currentClient?.systemId || newClient.systemId}
+    onChange={(value) =>
+      currentClient
+        ? setCurrentClient({ ...currentClient, systemId: value })
+        : setNewClient({ ...newClient, systemId: value })
+    }
+    placeholder="Vyberte systém"
+  >
+    {systems.map((system) => (
+      <Select.Option key={system.id} value={system.id}>
+        {system.name}
+      </Select.Option>
+    ))}
+  </Select>
+</Form.Item>
     <Form.Item label="Firma (volitelné)">
       <Input
         value={currentClient?.company || newClient.company}
@@ -428,70 +462,7 @@ const handleCreateFolder = async () => {
 </Modal>
 
 
-<Modal
-  title={currentClient ? "Upravit klienta" : "Přidat nového klienta"}
-  open={isModalOpen}
-  onOk={currentClient ? handleUpdateClient : handleAddClient}
-  onCancel={() => {
-    setIsModalOpen(false);
-    setCurrentClient(null);
-  }}
-  okText={currentClient ? "Upravit" : "Přidat"}
-  cancelText="Zrušit"
->
-  <Form layout="vertical">
-    <Form.Item label="Jméno" required>
-      <Input
-        value={currentClient?.name || newClient.name}
-        onChange={(e) =>
-          currentClient
-            ? setCurrentClient({ ...currentClient, name: e.target.value })
-            : setNewClient({ ...newClient, name: e.target.value })
-        }
-      />
-    </Form.Item>
-    <Form.Item label="E-mail" required>
-      <Input
-        value={currentClient?.email || newClient.email}
-        onChange={(e) =>
-          currentClient
-            ? setCurrentClient({ ...currentClient, email: e.target.value })
-            : setNewClient({ ...newClient, email: e.target.value })
-        }
-      />
-    </Form.Item>
-    <Form.Item label="Telefon" required>
-      <Input
-        value={currentClient?.phone || newClient.phone}
-        onChange={(e) =>
-          currentClient
-            ? setCurrentClient({ ...currentClient, phone: e.target.value })
-            : setNewClient({ ...newClient, phone: e.target.value })
-        }
-      />
-    </Form.Item>
-    <Form.Item label="Adresa">
-      <Input
-        value={currentClient?.address || newClient.address}
-        onChange={(e) =>
-          currentClient
-            ? setCurrentClient({ ...currentClient, address: e.target.value })
-            : setNewClient({ ...newClient, address: e.target.value })
-        }
-      />
-    </Form.Item>
-    <Form.Item label="Firma (volitelné)">
-      <Input
-        value={currentClient?.company || newClient.company}
-        onChange={(e) =>
-          currentClient
-            ? setCurrentClient({ ...currentClient, company: e.target.value })
-            : setNewClient({ ...newClient, company: e.target.value })
-        }
-      />
-    </Form.Item>
-  </Form>
-</Modal>
+
 
 
 <Modal

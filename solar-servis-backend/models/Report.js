@@ -1,6 +1,10 @@
+// models/Report.js
 import { DataTypes } from 'sequelize';
 import sequelize from '../database.js';
-import Client from './Client.js';  // Importujte Client před použitím v asociaci
+import System from './System.js';
+import Component from './Component.js';
+
+
 
 const Report = sequelize.define('Report', {
   date: {
@@ -42,6 +46,22 @@ const Report = sequelize.define('Report', {
       },
     },
   },
+  systemId: {
+    type: DataTypes.INTEGER,
+    allowNull: false,
+    references: {
+      model: 'Systems',
+      key: 'id',
+    },
+  },
+  componentId: {
+    type: DataTypes.INTEGER,
+    allowNull: false,
+    references: {
+      model: 'Components',
+      key: 'id',
+    },
+  },
   materialUsed: {
     type: DataTypes.JSONB,
     allowNull: true,
@@ -59,5 +79,6 @@ const Report = sequelize.define('Report', {
     allowNull: true,
   },
 });
+
 
 export default Report;

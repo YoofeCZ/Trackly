@@ -5,6 +5,8 @@ import fs from 'fs';
 import Client from '../models/Client.js';
 import { fileURLToPath } from 'url';
 import slugify from 'slugify';
+import System from '../models/System.js';
+
 
 // Vytvoření ekvivalentu `__dirname` v ES Modulech
 const __filename = fileURLToPath(import.meta.url);
@@ -114,13 +116,16 @@ router.get('/clients/:clientId/files', async (req, res) => {
 // Přidání nového klienta
 router.post('/', async (req, res) => {
   try {
-    console.log("Tělo požadavku:", req.body); // Logování těla požadavku
-    const { opCodes, ...clientData } = req.body;
+    const { opCodes, systemId, ...clientData } = req.body;
 
-    // Vytvoření nového klienta
-    const newClient = await Client.create({ ...clientData, opCodes });
-    console.log("Uložený klient:", newClient); // Logujeme nově vytvořeného klienta
+    // Ověření existence systému
+    const system = await System.findByPk(systemId);
+    if (!system) {
+      return res.status(400).json({ message: 'Systém nenalezen' });
+    }
 
+    // Vytvoření nového klienta s přiřazeným systémem
+    const newClient = await Client.create({ ...clientData, opCodes, systemId });
     res.status(201).json(newClient);
   } catch (error) {
     console.error('Chyba při vytváření klienta:', error);
@@ -130,21 +135,26 @@ router.post('/', async (req, res) => {
 
 
 
-
-
 // Získání všech klientů
-
 router.get('/', async (req, res) => {
-    try {
-        const clients = await Client.findAll({
-            attributes: ['id', 'name', 'email', 'phone', 'address', 'opCodes'],
-        });
-        res.json(clients);
-    } catch (error) {
-        console.error('Chyba při načítání klientů:', error);
-        res.status(500).json({ error: 'Chyba při načítání klientů.' });
-    }
+  try {
+    const clients = await Client.findAll({
+      attributes: ['id', 'name', 'email', 'phone', 'address', 'opCodes'],
+      include: [
+        {
+          model: System,
+          as: 'system',
+          attributes: ['id', 'name'],
+        },
+      ],
+    });
+    res.json(clients);
+  } catch (error) {
+    console.error('Chyba při načítání klientů:', error);
+    res.status(500).json({ error: 'Chyba při načítání klientů.' });
+  }
 });
+
 
 
 // Přidání souboru ke klientovi
@@ -272,20 +282,32 @@ router.delete('/:id', async (req, res) => {
   }
 });
 
+// Aktualizace klienta
 router.put('/:id', async (req, res) => {
   try {
-      const { opCodes, ...clientData } = req.body;
-      const client = await Client.findByPk(req.params.id);
-      if (!client) {
-          return res.status(404).json({ message: 'Klient nenalezen' });
+    const { opCodes, systemId, ...clientData } = req.body;
+
+    const client = await Client.findByPk(req.params.id);
+    if (!client) {
+      return res.status(404).json({ message: 'Klient nenalezen' });
+    }
+
+    // Ověření existence systému, pokud je poskytnut
+    if (systemId) {
+      const system = await System.findByPk(systemId);
+      if (!system) {
+        return res.status(400).json({ message: 'Systém nenalezen' });
       }
-      await client.update({ ...clientData, opCodes });
-      res.status(200).json(client);
+    }
+
+    await client.update({ ...clientData, opCodes, systemId });
+    res.status(200).json(client);
   } catch (error) {
-      console.error('Chyba při aktualizaci klienta:', error);
-      res.status(500).json({ message: 'Chyba při aktualizaci klienta', error: error.message });
+    console.error('Chyba při aktualizaci klienta:', error);
+    res.status(500).json({ message: 'Chyba při aktualizaci klienta', error: error.message });
   }
 });
+
 
 router.post('/:id/assign-op', async (req, res) => {
   try {

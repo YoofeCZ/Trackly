@@ -1,4 +1,4 @@
-//backend
+// routes/reports.js
 import express from 'express';
 import multer from 'multer';
 import nodemailer from 'nodemailer';
@@ -12,9 +12,13 @@ import Client from '../models/Client.js';
 import ChangeLog from '../models/ChangeLog.js';
 import Version from '../models/Version.js';
 
+// Import nových modelů
+import System from '../models/System.js';
+import Component from '../models/Component.js';
 
 const router = express.Router();
 const upload = multer({ dest: 'uploads/' });
+
 // 1. Vytvoření reportu
 router.post('/', async (req, res) => {
     try {
@@ -27,6 +31,8 @@ router.post('/', async (req, res) => {
             technicianId,   // ID technika
             clientId,       // ID klienta
             opCode,         // OP kód
+            systemId,       // ID systému
+            componentId,    // ID komponenty
             materialUsed,   // Použité materiály
             totalWorkCost,  // Celková cena za práci
             totalTravelCost, // Cestovní náklady
@@ -58,6 +64,18 @@ router.post('/', async (req, res) => {
                 error: "OP kód je povinný.",
             });
         }
+        if (!systemId) {
+            return res.status(400).json({
+                message: "Chyba při vytváření reportu",
+                error: "Systém musí být zadán.",
+            });
+        }
+        if (!componentId) {
+            return res.status(400).json({
+                message: "Chyba při vytváření reportu",
+                error: "Komponenta musí být zadána.",
+            });
+        }
 
         // Vytvoření nového reportu
         const report = await Report.create({
@@ -66,6 +84,8 @@ router.post('/', async (req, res) => {
             technicianId,
             clientId,
             opCode,
+            systemId,
+            componentId,
             materialUsed,
             totalWorkCost,
             totalTravelCost,
@@ -82,8 +102,7 @@ router.post('/', async (req, res) => {
     }
 });
 
-
-
+// 2. Získání všech reportů
 router.get('/', async (req, res) => {
     try {
         const { technicianId, clientId, fromDate, toDate, status } = req.query;
@@ -101,8 +120,10 @@ router.get('/', async (req, res) => {
         const reports = await Report.findAll({
             where: filters,
             include: [
-                { model: Technician, as: 'technician' },  // Přidání aliasu 'technician'
-                { model: Client, as: 'client', attributes: ['id', 'name', 'opCodes'] },
+                { model: Technician, as: 'technician' },
+                { model: Client, as: 'client', attributes: ['id', 'name', 'opCodes', 'email', 'phone', 'address'] },
+                { model: System, as: 'system' },
+                { model: Component, as: 'component' },
             ],
         });
 
@@ -112,23 +133,16 @@ router.get('/', async (req, res) => {
     }
 });
 
-
-
 // 3. Získání jednoho reportu
 router.get('/:id', async (req, res) => {
     try {
-        // Zajišťujeme, že klient je zahrnutý při získávání reportu
         const report = await Report.findByPk(req.params.id, {
             include: [
-                {
-                    model: Client,  // Zahrnutí modelu Client
-                    as: 'client',   // alias pro asociaci (musí odpovídat tomu v definici asociace)
-                },
-                {
-                    model: Technician,  // Zahrnutí technika do výstupu
-                    as: 'technician',  // Alias pro technika
-                }
-            ]
+                { model: Technician, as: 'technician' },
+                { model: Client, as: 'client' },
+                { model: System, as: 'system' },
+                { model: Component, as: 'component' },
+            ],
         });
 
         if (!report) {
@@ -141,9 +155,6 @@ router.get('/:id', async (req, res) => {
         res.status(500).json({ message: 'Chyba při získávání reportu', error: error.message });
     }
 });
-
-
-
 
 // 4. Aktualizace reportu
 router.put('/:id', async (req, res) => {
@@ -206,7 +217,14 @@ router.post('/:id/upload', upload.single('file'), async (req, res) => {
 router.post('/:id/generate-document', async (req, res) => {
     try {
         const { id } = req.params;
-        const report = await Report.findByPk(id);
+        const report = await Report.findByPk(id, {
+            include: [
+                { model: Technician, as: 'technician' },
+                { model: Client, as: 'client' },
+                { model: System, as: 'system' },
+                { model: Component, as: 'component' },
+            ],
+        });
 
         if (!report) {
             return res.status(404).json({ message: 'Report nenalezen' });
@@ -321,7 +339,5 @@ router.post('/clients/:clientId/assign-op', async (req, res) => {
         res.status(500).json({ message: 'Chyba při přiřazování OP kódu', error: error.message });
     }
 });
-
-
 
 export default router;

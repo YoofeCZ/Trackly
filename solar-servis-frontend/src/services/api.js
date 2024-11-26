@@ -18,6 +18,98 @@ export const getTechnicians = async () => {
   return response.json();
 };
 
+//Funkce pro Systems a Components
+export const getSystems = async () => {
+  try {
+    const response = await axios.get(`${API_URL}/systems`);
+    return response.data;
+  } catch (error) {
+    console.error('Chyba při získávání systémů:', error);
+    throw error;
+  }
+};
+
+export const createSystem = async (systemData) => {
+  try {
+    const response = await axios.post(`${API_URL}/systems`, systemData);
+    return response.data;
+  } catch (error) {
+    console.error('Chyba při vytváření systému:', error);
+    throw error;
+  }
+};
+
+export const updateSystem = async (systemId, systemData) => {
+  try {
+    const response = await axios.put(`${API_URL}/systems/${systemId}`, systemData);
+    return response.data;
+  } catch (error) {
+    console.error('Chyba při aktualizaci systému:', error);
+    throw error;
+  }
+};
+
+export const deleteSystem = async (systemId) => {
+  try {
+    await axios.delete(`${API_URL}/systems/${systemId}`);
+    return { message: 'Systém byl úspěšně smazán' };
+  } catch (error) {
+    console.error('Chyba při mazání systému:', error);
+    throw error;
+  }
+};
+
+export const getComponents = async () => {
+  try {
+    const response = await axios.get(`${API_URL}/components`);
+    return response.data;
+  } catch (error) {
+    console.error('Chyba při získávání komponent:', error);
+    throw error;
+  }
+};
+
+export const createComponent = async (componentData) => {
+  try {
+    const response = await axios.post(`${API_URL}/components`, componentData);
+    return response.data;
+  } catch (error) {
+    console.error('Chyba při vytváření komponenty:', error);
+    throw error;
+  }
+};
+
+export const updateComponent = async (componentId, componentData) => {
+  try {
+    const response = await axios.put(`${API_URL}/components/${componentId}`, componentData);
+    return response.data;
+  } catch (error) {
+    console.error('Chyba při aktualizaci komponenty:', error);
+    throw error;
+  }
+};
+
+export const deleteComponent = async (componentId) => {
+  try {
+    await axios.delete(`${API_URL}/components/${componentId}`);
+    return { message: 'Komponenta byla úspěšně smazána' };
+  } catch (error) {
+    console.error('Chyba při mazání komponenty:', error);
+    throw error;
+  }
+};
+// Přidání nové funkce do ../services/api
+export const getComponentsBySystemId = async (systemId) => {
+  const response = await fetch(`${API_URL}/components/system/${systemId}`);
+  if (!response.ok) {
+    throw new Error('Failed to fetch components by system ID');
+  }
+  return await response.json();
+};
+
+
+
+
 // Funkce pro nahrání souboru ke klientovi
 export const uploadClientFile = async (clientId, formData) => {
   try {

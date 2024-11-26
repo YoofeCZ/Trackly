@@ -96,6 +96,25 @@ const Navbar = ({ onLogout }) => {
                 Sklad
               </Link>
             </li>
+            <li className="nav-item">
+  <Link
+    to="/systems"
+    className={`nav-link ${location.pathname === "/systems" ? "active" : ""}`}
+    onClick={() => setMenuOpen(false)}
+  >
+    Systémy
+  </Link>
+</li>
+<li className="nav-item">
+  <Link
+    to="/components"
+    className={`nav-link ${location.pathname === "/components" ? "active" : ""}`}
+    onClick={() => setMenuOpen(false)}
+  >
+    Komponenty
+  </Link>
+</li>
+
             {userRole === "admin" && (
               <li className="nav-item">
                 <Link

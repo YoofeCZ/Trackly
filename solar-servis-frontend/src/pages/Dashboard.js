@@ -75,15 +75,17 @@ const Dashboard = () => {
         const tasks = await getTasks();
         const warehouse = await getWarehouseItems();
         const reports = await getReports();
+  
+        // Výpočet cen reportů
+        const reportPrices = reports.map((report) =>
+          (report.totalWorkCost || 0) +
+          (report.totalTravelCost || 0) +
+          (report.totalMaterialCost || 0)
+        );
+  
+        const maxReportPrice = Math.max(...reportPrices);
+        const totalReportPrice = reportPrices.reduce((sum, price) => sum + price, 0);
 
-        // Zpracování reportů
-        const maxReportPrice = Math.max(
-          ...reports.map((report) => report.price || 0)
-        );
-        const totalReportPrice = reports.reduce(
-          (sum, report) => sum + (report.price || 0),
-          0
-        );
 
         // Data pro graf úkolů podle měsíců
         const monthlyTasks = tasks.reduce((acc, task) => {
@@ -108,135 +110,136 @@ const Dashboard = () => {
           ],
         });
 
-        // Počet klientů podle systému
-        const systemClientsCount = clients.reduce((acc, client) => {
-          acc[client.system] = (acc[client.system] || 0) + 1;
-          return acc;
-        }, {});
+      // Počet klientů podle systému
+      const systemClientsCount = clients.reduce((acc, client) => {
+        const systemName = client.system?.name || "Neznámý systém";
+        acc[systemName] = (acc[systemName] || 0) + 1;
+        return acc;
+      }, {});
 
-        // Analýza systémů
-        const systems = ["Victron", "Solax", "Solar Edge", "GoodWe"];
-        const systemStatsData = systems.map((system) => {
-          const systemReports = reports.filter(
-            (report) => report.system === system
-          );
-          const serviceCount = systemReports.length;
-          const faults = systemReports.filter((report) => report.fault).length;
-          const clientCount = systemClientsCount[system] || 0;
+      // Analýza systémů
+      const systems = ["Victron", "Solax", "Solar Edge", "GoodWe"];
+      const systemStatsData = systems.map((system) => {
+        const systemReports = reports.filter(
+          (report) => report.system?.name === system
+        );
+        
+        const serviceCount = systemReports.length;
+        const faults = serviceCount; // Každý report je považován za poruchu
+        const clientCount = systemClientsCount[system] || 0;
 
-          // Poruchovost na klienta (normalizovaná poruchovost)
-          const faultRate =
-            clientCount > 0 ? ((faults / clientCount) * 100).toFixed(2) : 0;
+        // Poruchovost na klienta (normalizovaná poruchovost)
+        const faultRate =
+          clientCount > 0 ? ((faults / clientCount) * 100).toFixed(2) : 0;
 
-          return {
-            system,
-            serviceCount,
-            faults,
-            clientCount,
-            faultRate: parseFloat(faultRate),
-          };
-        });
+        return {
+          system,
+          serviceCount,
+          faults,
+          clientCount,
+          faultRate: parseFloat(faultRate),
+        };
+      });
 
-        // Data pro tabulku a graf systémů
-        setSystemsTableData(systemStatsData);
-        setSystemStats({
-          labels: systems,
-          datasets: [
-            {
-              label: "Počet servisů",
-              data: systemStatsData.map((s) => s.serviceCount),
-              backgroundColor: "#36a2eb",
-            },
-            {
-              label: "Počet poruch",
-              data: systemStatsData.map((s) => s.faults),
-              backgroundColor: "#ff6384",
-            },
-            {
-              label: "Poruchovost (%) na klienta",
-              data: systemStatsData.map((s) => s.faultRate),
-              backgroundColor: "#ffcd56",
-            },
-          ],
-        });
+      // Logování pro kontrolu
+      console.log("systemStatsData:", systemStatsData);
 
-        // Nejvíce poruchový systém
+      // Data pro tabulku a graf systémů
+      setSystemsTableData(systemStatsData);
+      setSystemStats({
+        labels: systems,
+        datasets: [
+          {
+            label: "Počet servisů",
+            data: systemStatsData.map((s) => s.serviceCount),
+            backgroundColor: "#36a2eb",
+          },
+          {
+            label: "Poruchovost (%) na klienta",
+            data: systemStatsData.map((s) => s.faultRate),
+            backgroundColor: "#ffcd56",
+          },
+        ],
+      });
+
+      // Nejvíce poruchový systém
+      if (systemStatsData.length > 0) {
         const faultySystem = systemStatsData.reduce((prev, current) =>
           current.faultRate > prev.faultRate ? current : prev
         );
         setMostFaultySystem(faultySystem.system);
+      } else {
+        setMostFaultySystem("N/A");
+      }
 
         // Analýza komponent
-        const totalServices = reports.length;
+const totalServices = reports.length;
 
-        const componentStatsData = reports.reduce((acc, report) => {
-          const component = report.component || "Neznámé";
-          if (!acc[component]) {
-            acc[component] = { serviceCount: 0, faults: 0 };
-          }
-          acc[component].serviceCount += 1;
-          if (report.fault) {
-            acc[component].faults += 1;
-          }
-          return acc;
-        }, {});
+const componentStatsData = reports.reduce((acc, report) => {
+  const componentName = report.component?.name || "Neznámé";
+  if (!acc[componentName]) {
+    acc[componentName] = { serviceCount: 0, faults: 0 };
+  }
+  acc[componentName].serviceCount += 1;
+  acc[componentName].faults += 1; // Každý report je považován za poruchu
+  return acc;
+}, {});
 
-        const components = Object.keys(componentStatsData);
+const components = Object.keys(componentStatsData);
 
-        // Přidání procentuální poruchovosti ke komponentám
-        const componentsData = components.map((component) => {
-          const data = componentStatsData[component];
-          const faultRate =
-            totalServices > 0
-              ? ((data.faults / totalServices) * 100).toFixed(2)
-              : 0;
-          return {
-            component,
-            serviceCount: data.serviceCount,
-            faults: data.faults,
-            faultRate: parseFloat(faultRate),
-          };
-        });
+// Přidání procentuální poruchovosti ke komponentám
+const componentsData = components.map((component) => {
+  const data = componentStatsData[component];
+  const faultRate =
+    totalServices > 0
+      ? ((data.faults / totalServices) * 100).toFixed(2)
+      : 0;
+  return {
+    component,
+    serviceCount: data.serviceCount,
+    faults: data.faults,
+    faultRate: parseFloat(faultRate),
+  };
+});
 
-        // Tabulka a graf komponent
-        setComponentsTableData(componentsData);
-        setComponentStats({
-          labels: components,
-          datasets: [
-            {
-              label: "Počet servisů",
-              data: componentsData.map((c) => c.serviceCount),
-              backgroundColor: "#36a2eb",
-            },
-            {
-              label: "Počet poruch",
-              data: componentsData.map((c) => c.faults),
-              backgroundColor: "#ff6384",
-            },
-            {
-              label: "Poruchovost (%)",
-              data: componentsData.map((c) => c.faultRate),
-              backgroundColor: "#ffcd56",
-            },
-          ],
-        });
+// Tabulka a graf komponent
+setComponentsTableData(componentsData);
+setComponentStats({
+  labels: components,
+  datasets: [
+    {
+      label: "Počet servisů",
+      data: componentsData.map((c) => c.serviceCount),
+      backgroundColor: "#36a2eb",
+    },
+    {
+      label: "Poruchovost (%)",
+      data: componentsData.map((c) => c.faultRate),
+      backgroundColor: "#ffcd56",
+    },
+  ],
+});
 
-        // Nejvíce poruchová komponenta
-        const faultyComponent = componentsData.reduce((prev, current) =>
-          current.faultRate > prev.faultRate ? current : prev
-        );
-        setMostFaultyComponent(faultyComponent.component);
+// Nejvíce poruchová komponenta
+if (componentsData.length > 0) {
+  const faultyComponent = componentsData.reduce((prev, current) =>
+    current.faultRate > prev.faultRate ? current : prev
+  );
+  setMostFaultyComponent(faultyComponent.component);
+} else {
+  setMostFaultyComponent("N/A");
+}
 
-        // Nastavení statistik
-        setStats({
-          clients: clients.length,
-          technicians: technicians.length,
-          tasks: tasks.length,
-          warehouse: warehouse.length,
-          maxReportPrice,
-          totalReportPrice,
-        });
 
+      // Nastavení statistik
+      setStats({
+        clients: clients.length,
+        technicians: technicians.length,
+        tasks: tasks.length,
+        warehouse: warehouse.length,
+        maxReportPrice,
+        totalReportPrice,
+      });
         setRecentClients(clients.slice(-5));
         setRecentTasks(tasks.slice(-5));
 
@@ -276,12 +279,7 @@ const Dashboard = () => {
       key: "clientCount",
     },
     {
-      title: "Počet servisů",
-      dataIndex: "serviceCount",
-      key: "serviceCount",
-    },
-    {
-      title: "Počet poruch",
+      title: "Poruchy",
       dataIndex: "faults",
       key: "faults",
     },
@@ -292,17 +290,13 @@ const Dashboard = () => {
       render: (value) => `${value}%`,
     },
   ];
+  
 
   const componentColumns = [
     {
       title: "Komponenta",
       dataIndex: "component",
       key: "component",
-    },
-    {
-      title: "Počet servisů",
-      dataIndex: "serviceCount",
-      key: "serviceCount",
     },
     {
       title: "Počet poruch",

@@ -22,6 +22,14 @@ const Client = sequelize.define('Client', {
     type: DataTypes.STRING,
     allowNull: false,
   },
+  systemId: {
+    type: DataTypes.INTEGER,
+    allowNull: false, // Pokud chcete povolit klienty bez systému, nastavte na true
+    references: {
+      model: 'Systems',
+      key: 'id',
+    },
+  },
   company: {
     type: DataTypes.STRING,
     allowNull: true,
