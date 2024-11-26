@@ -115,6 +115,11 @@ p {
 
 .ant-table {
   background: #fff;
+  overflow-x: auto; /* Přidá horizontální posuvník, pokud tabulka přesahuje šířku */
+}
+.ant-table-wrapper {
+  margin: 0; /* Zruší pevné mezery kolem tabulky */
+  padding: 0; /* Minimalizuje vnější prostor */
 }
 
 .ant-table-thead > tr > th {
@@ -122,11 +127,15 @@ p {
   color: #1f1f1f;
   font-weight: bold;
   padding: 12px;
+  white-space: nowrap; /* Zabrání zalamování textu v tabulkách */
+  font-size: 0.8rem; /* Zmenší text pro mobilní zobrazení */
 }
 
 .ant-table-tbody > tr > td {
   color: #595959;
   padding: 12px;
+  white-space: nowrap; /* Zabrání zalamování textu v tabulkách */
+  font-size: 0.8rem; /* Zmenší text pro mobilní zobrazení */
 }
 
 .ant-table-tbody > tr:hover > td {
@@ -229,12 +238,16 @@ p {
   }
 
   .order-history li {
-    flex-direction: column;
+    flex-direction: column; /* Přepne prvky v seznamu pod sebe */
     align-items: flex-start;
   }
 
   .order-history li .details {
     margin-top: 5px;
+  }
+  .container {
+    max-width: 100%;
+    padding: 10px; /* Zmenší padding na mobilních zařízeních */
   }
 }
 
