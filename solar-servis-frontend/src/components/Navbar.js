@@ -36,7 +36,7 @@ const Navbar = ({ onLogout }) => {
           aria-expanded={menuOpen ? "true" : "false"}
           aria-label="Toggle navigation"
         >
-          <span className="navbar-toggler-icon"></span>
+          <img src="/images/collapse.png" alt="collapse menu" className="navbar-logo" />
         </button>
 
         {/* Navigační menu */}
