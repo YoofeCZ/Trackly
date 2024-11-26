@@ -25,6 +25,7 @@ import DocumentPreview from "../utils/DocumentPreview";
 import Docxtemplater from "docxtemplater";
 import mammoth from "mammoth";
 import PizZip from "pizzip"; // Přidejte tento import
+import { getSystems, getComponentsBySystemId } from "../services/api"; // Add this import
 
 let API_URL;
 
@@ -65,12 +66,29 @@ const ReportPage = () => {
   const [chargedCost, setChargedCost] = useState(0); // Náklady účtované zákazníkovi
   const [unchargedCost, setUnchargedCost] = useState(0); // Neúčtované náklady
   const [originalReportList, setOriginalReportList] = useState([]); // Původní seznam reportů
+  const [systems, setSystems] = useState([]);
+const [components, setComponents] = useState([]);
+const [selectedSystemId, setSelectedSystemId] = useState(null); // For tracking selected system
+
   const [settings, setSettings] = useState({
     hourlyRate: 1500, // Výchozí hodnota
     kilometerRate: 8, // Výchozí hodnota
     travelTimeRate: 100, // Výchozí hodnota
   });
 
+  useEffect(() => {
+    const fetchSystems = async () => {
+      try {
+        const systemsData = await getSystems();
+        setSystems(systemsData);
+      } catch (error) {
+        message.error("Chyba při načítání systémů.");
+      }
+    };
+    fetchSystems();
+  }, []);
+
+  
   useEffect(() => {
     const fetchSettings = async () => {
       try {
@@ -149,6 +167,17 @@ useEffect(() => {
   }, [form, selectedClient]);
   
 
+  const handleSystemChange = async (systemId) => {
+    setSelectedSystemId(systemId);
+    form.setFieldsValue({ componentId: null }); // Reset component selection
+    try {
+      const componentsData = await getComponentsBySystemId(systemId);
+      setComponents(componentsData);
+    } catch (error) {
+      message.error("Chyba při načítání komponent.");
+    }
+  };
+  
 // Funkce pro zpracování vyhledávání
 // Funkce pro zpracování vyhledávání
 const handleSearch = (e) => {
@@ -311,6 +340,8 @@ const handleCloseDetails = () => {
     console.log("Editace reportu:", report); // Debug
     setSelectedReport(report); // Uloží vybraný report do stavu
     form.setFieldsValue({
+      systemId: report.system?.id,
+      componentId: report.component?.id,
       reportDate: dayjs(report.date, "YYYY-MM-DD"), // Datum jako dayjs objekt
       opCode: report.opCode,
       clientId: report.client?.id,
@@ -372,6 +403,10 @@ const handleCloseDetails = () => {
         clientAddress: report.client?.address || "Adresa není k dispozici", // Tady je přidána adresa
         clientEmail: report.client?.email || "Email není k dispozici",
         clientPhone: report.client?.phone || "Telefon není k dispozici",
+
+        //Info Komponenta a Systém
+        systemName: report.system?.name || "Není k dispozici",
+        componentName: report.component?.name || "Není k dispozici",
         
         // Informace o technikovi
         technicianName: report.technician?.name || "Neznámý technik",
@@ -519,6 +554,18 @@ const handleCloseDetails = () => {
         ),
     },
     {
+      title: "Systém",
+      dataIndex: ["system", "name"],
+      key: "system",
+      render: (text, record) => record.system?.name || "N/A",
+    },
+    {
+      title: "Komponenta",
+      dataIndex: ["component", "name"],
+      key: "component",
+      render: (text, record) => record.component?.name || "N/A",
+    },
+    {
       title: "Technik",
       dataIndex: "technician",
       key: "technician",
@@ -606,6 +653,8 @@ const handleCloseDetails = () => {
     setTravelCost(travelCostValue);
 
     const reportData = {
+      systemId: values.systemId,
+      componentId: values.componentId,
         date: values.reportDate?.format("YYYY-MM-DD"),
         description: values.description || "",
         technicianId: values.technicianId,
@@ -875,12 +924,25 @@ const customMaterialColumns = [
         <p><b>Identifikační číslo:</b> {selectedReport.technician?.employeeId || "Není přiřazeno"}</p>
       </Card>
 
-      {/* Detaily reportu */}
-      <Card title="Detaily reportu" style={{ marginBottom: "20px" }}>
-        <p><b>Datum:</b> {dayjs(selectedReport.date).format("DD.MM.YYYY")}</p>
-        <p><b>Popis práce:</b> {selectedReport.description || "Není k dispozici"}</p>
-        <p><b>OP Kód:</b> {selectedReport.opCode || "Není přiřazen"}</p>
-      </Card>
+{/* Detaily reportu */}
+<Card title="Detaily reportu" style={{ marginBottom: "20px" }}>
+  <p>
+    <b>Datum:</b> {dayjs(selectedReport.date).format("DD.MM.YYYY")}
+  </p>
+  <p>
+    <b>Systém:</b> {selectedReport.system?.name || "Není k dispozici"}
+  </p>
+  <p>
+    <b>Komponenta:</b> {selectedReport.component?.name || "Není k dispozici"}
+  </p>
+  <p>
+    <b>Popis práce:</b> {selectedReport.description || "Není k dispozici"}
+  </p>
+  <p>
+    <b>OP Kód:</b> {selectedReport.opCode || "Není přiřazen"}
+  </p>
+</Card>
+
 
       {/* Náklady */}
       <Card title="Celkové náklady">
@@ -981,6 +1043,36 @@ const customMaterialColumns = [
     <p><b>Telefon:</b> {selectedClient.phone || "Nezadán"}</p>
   </Card>
 )}
+<Form.Item
+  name="systemId"
+  label="Systém"
+  rules={[{ required: true, message: "Vyberte systém" }]}
+>
+  <Select onChange={handleSystemChange} placeholder="Vyberte systém">
+    {systems.map((system) => (
+      <Select.Option key={system.id} value={system.id}>
+        {system.name}
+      </Select.Option>
+    ))}
+  </Select>
+</Form.Item>
+
+<Form.Item
+  name="componentId"
+  label="Komponenta"
+  rules={[{ required: true, message: "Vyberte komponentu" }]}
+>
+  <Select
+    disabled={!selectedSystemId}
+    placeholder="Vyberte komponentu"
+  >
+    {components.map((component) => (
+      <Select.Option key={component.id} value={component.id}>
+        {component.name}
+      </Select.Option>
+    ))}
+  </Select>
+</Form.Item>
 
 
 

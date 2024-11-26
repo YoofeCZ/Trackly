@@ -1,5 +1,32 @@
 import React, { useEffect, useState } from "react";
-import { getClients, getTechnicians, getTasks, getWarehouseItems } from "../services/api"; // Import API funkcí
+import { Row, Col, Card, Table } from "antd";
+import {
+  Chart as ChartJS,
+  BarElement,
+  CategoryScale,
+  LinearScale,
+  Title,
+  Tooltip,
+  Legend,
+} from "chart.js";
+import { Bar } from "react-chartjs-2";
+import {
+  getClients,
+  getTechnicians,
+  getTasks,
+  getWarehouseItems,
+  getReports,
+} from "../services/api";
+import {
+  UserOutlined,
+  FileDoneOutlined,
+  AppstoreOutlined,
+  ToolOutlined,
+  DollarOutlined,
+} from "@ant-design/icons";
+
+// Registrace potřebných komponent pro Chart.js
+ChartJS.register(BarElement, CategoryScale, LinearScale, Title, Tooltip, Legend);
 
 const Dashboard = () => {
   const [stats, setStats] = useState({
@@ -7,7 +34,35 @@ const Dashboard = () => {
     technicians: 0,
     tasks: 0,
     warehouse: 0,
+    maxReportPrice: 0,
+    totalReportPrice: 0,
   });
+
+  const [chartData, setChartData] = useState({
+    labels: [],
+    datasets: [],
+  });
+
+  const [monthlyTasksData, setMonthlyTasksData] = useState({
+    labels: [],
+    datasets: [],
+  });
+
+  const [systemStats, setSystemStats] = useState({
+    labels: [],
+    datasets: [],
+  });
+
+  const [systemsTableData, setSystemsTableData] = useState([]);
+  const [mostFaultySystem, setMostFaultySystem] = useState("");
+
+  const [componentStats, setComponentStats] = useState({
+    labels: [],
+    datasets: [],
+  });
+
+  const [componentsTableData, setComponentsTableData] = useState([]);
+  const [mostFaultyComponent, setMostFaultyComponent] = useState("");
 
   const [recentClients, setRecentClients] = useState([]);
   const [recentTasks, setRecentTasks] = useState([]);
@@ -19,17 +74,191 @@ const Dashboard = () => {
         const technicians = await getTechnicians();
         const tasks = await getTasks();
         const warehouse = await getWarehouseItems();
+        const reports = await getReports();
+  
+        // Výpočet cen reportů
+        const reportPrices = reports.map((report) =>
+          (report.totalWorkCost || 0) +
+          (report.totalTravelCost || 0) +
+          (report.totalMaterialCost || 0)
+        );
+  
+        const maxReportPrice = Math.max(...reportPrices);
+        const totalReportPrice = reportPrices.reduce((sum, price) => sum + price, 0);
 
-        setStats({
-          clients: clients.length,
-          technicians: technicians.length,
-          tasks: tasks.length,
-          warehouse: warehouse.length,
+
+        // Data pro graf úkolů podle měsíců
+        const monthlyTasks = tasks.reduce((acc, task) => {
+          const month = new Date(task.date).toLocaleString("default", {
+            month: "short",
+          });
+          acc[month] = (acc[month] || 0) + 1;
+          return acc;
+        }, {});
+
+        const monthlyLabels = Object.keys(monthlyTasks);
+        const monthlyCounts = Object.values(monthlyTasks);
+
+        setMonthlyTasksData({
+          labels: monthlyLabels,
+          datasets: [
+            {
+              label: "Počet úkolů",
+              data: monthlyCounts,
+              backgroundColor: "#ff6384",
+            },
+          ],
         });
 
-        // Pro ukázku posledních klientů a úkolů
+      // Počet klientů podle systému
+      const systemClientsCount = clients.reduce((acc, client) => {
+        const systemName = client.system?.name || "Neznámý systém";
+        acc[systemName] = (acc[systemName] || 0) + 1;
+        return acc;
+      }, {});
+
+      // Analýza systémů
+      const systems = ["Victron", "Solax", "Solar Edge", "GoodWe"];
+      const systemStatsData = systems.map((system) => {
+        const systemReports = reports.filter(
+          (report) => report.system?.name === system
+        );
+        
+        const serviceCount = systemReports.length;
+        const faults = serviceCount; // Každý report je považován za poruchu
+        const clientCount = systemClientsCount[system] || 0;
+
+        // Poruchovost na klienta (normalizovaná poruchovost)
+        const faultRate =
+          clientCount > 0 ? ((faults / clientCount) * 100).toFixed(2) : 0;
+
+        return {
+          system,
+          serviceCount,
+          faults,
+          clientCount,
+          faultRate: parseFloat(faultRate),
+        };
+      });
+
+      // Logování pro kontrolu
+      console.log("systemStatsData:", systemStatsData);
+
+      // Data pro tabulku a graf systémů
+      setSystemsTableData(systemStatsData);
+      setSystemStats({
+        labels: systems,
+        datasets: [
+          {
+            label: "Počet servisů",
+            data: systemStatsData.map((s) => s.serviceCount),
+            backgroundColor: "#36a2eb",
+          },
+          {
+            label: "Poruchovost (%) na klienta",
+            data: systemStatsData.map((s) => s.faultRate),
+            backgroundColor: "#ffcd56",
+          },
+        ],
+      });
+
+      // Nejvíce poruchový systém
+      if (systemStatsData.length > 0) {
+        const faultySystem = systemStatsData.reduce((prev, current) =>
+          current.faultRate > prev.faultRate ? current : prev
+        );
+        setMostFaultySystem(faultySystem.system);
+      } else {
+        setMostFaultySystem("N/A");
+      }
+
+        // Analýza komponent
+const totalServices = reports.length;
+
+const componentStatsData = reports.reduce((acc, report) => {
+  const componentName = report.component?.name || "Neznámé";
+  if (!acc[componentName]) {
+    acc[componentName] = { serviceCount: 0, faults: 0 };
+  }
+  acc[componentName].serviceCount += 1;
+  acc[componentName].faults += 1; // Každý report je považován za poruchu
+  return acc;
+}, {});
+
+const components = Object.keys(componentStatsData);
+
+// Přidání procentuální poruchovosti ke komponentám
+const componentsData = components.map((component) => {
+  const data = componentStatsData[component];
+  const faultRate =
+    totalServices > 0
+      ? ((data.faults / totalServices) * 100).toFixed(2)
+      : 0;
+  return {
+    component,
+    serviceCount: data.serviceCount,
+    faults: data.faults,
+    faultRate: parseFloat(faultRate),
+  };
+});
+
+// Tabulka a graf komponent
+setComponentsTableData(componentsData);
+setComponentStats({
+  labels: components,
+  datasets: [
+    {
+      label: "Počet servisů",
+      data: componentsData.map((c) => c.serviceCount),
+      backgroundColor: "#36a2eb",
+    },
+    {
+      label: "Poruchovost (%)",
+      data: componentsData.map((c) => c.faultRate),
+      backgroundColor: "#ffcd56",
+    },
+  ],
+});
+
+// Nejvíce poruchová komponenta
+if (componentsData.length > 0) {
+  const faultyComponent = componentsData.reduce((prev, current) =>
+    current.faultRate > prev.faultRate ? current : prev
+  );
+  setMostFaultyComponent(faultyComponent.component);
+} else {
+  setMostFaultyComponent("N/A");
+}
+
+
+      // Nastavení statistik
+      setStats({
+        clients: clients.length,
+        technicians: technicians.length,
+        tasks: tasks.length,
+        warehouse: warehouse.length,
+        maxReportPrice,
+        totalReportPrice,
+      });
         setRecentClients(clients.slice(-5));
         setRecentTasks(tasks.slice(-5));
+
+        // Dummy data pro graf výkonu techniků
+        setChartData({
+          labels: ["Jan", "Feb", "Mar", "Apr", "May", "Jun"],
+          datasets: [
+            {
+              label: "Výkon techniků",
+              data: [12, 19, 3, 5, 2, 3],
+              backgroundColor: "#4bc0c0",
+            },
+            {
+              label: "Úkoly dokončené",
+              data: [8, 15, 7, 10, 5, 9],
+              backgroundColor: "#9966ff",
+            },
+          ],
+        });
       } catch (error) {
         console.error("Chyba při načítání dat pro dashboard:", error);
       }
@@ -38,111 +267,186 @@ const Dashboard = () => {
     fetchStats();
   }, []);
 
+  const systemColumns = [
+    {
+      title: "Systém",
+      dataIndex: "system",
+      key: "system",
+    },
+    {
+      title: "Počet klientů",
+      dataIndex: "clientCount",
+      key: "clientCount",
+    },
+    {
+      title: "Poruchy",
+      dataIndex: "faults",
+      key: "faults",
+    },
+    {
+      title: "Poruchovost na klienta (%)",
+      dataIndex: "faultRate",
+      key: "faultRate",
+      render: (value) => `${value}%`,
+    },
+  ];
+  
+
+  const componentColumns = [
+    {
+      title: "Komponenta",
+      dataIndex: "component",
+      key: "component",
+    },
+    {
+      title: "Počet poruch",
+      dataIndex: "faults",
+      key: "faults",
+    },
+    {
+      title: "Poruchovost (%)",
+      dataIndex: "faultRate",
+      key: "faultRate",
+      render: (value) => `${value}%`,
+    },
+  ];
+
   return (
-    <div className="page">
-      <div className="container-xl">
-        <div className="page-header d-flex justify-content-between align-items-center">
-          <h2 className="page-title">Dashboard</h2>
-        </div>
+    <div className="dashboard-container">
+      <h1>Dashboard</h1>
 
-        {/* Statistiky */}
-        <div className="row row-cards">
-          <div className="col-sm-6 col-lg-3">
-            <div className="card">
-              <div className="card-body text-center">
-                <div className="h1 m-0">{stats.clients}</div>
-                <div className="text-muted">Počet klientů</div>
-              </div>
-            </div>
-          </div>
-          <div className="col-sm-6 col-lg-3">
-            <div className="card">
-              <div className="card-body text-center">
-                <div className="h1 m-0">{stats.technicians}</div>
-                <div className="text-muted">Počet techniků</div>
-              </div>
-            </div>
-          </div>
-          <div className="col-sm-6 col-lg-3">
-            <div className="card">
-              <div className="card-body text-center">
-                <div className="h1 m-0">{stats.tasks}</div>
-                <div className="text-muted">Aktivní úkoly</div>
-              </div>
-            </div>
-          </div>
-          <div className="col-sm-6 col-lg-3">
-            <div className="card">
-              <div className="card-body text-center">
-                <div className="h1 m-0">{stats.warehouse}</div>
-                <div className="text-muted">Materiály na skladě</div>
-              </div>
-            </div>
-          </div>
-        </div>
+      {/* Statistiky */}
+      <Row gutter={[16, 16]}>
+        <Col xs={24} sm={12} md={8} lg={4}>
+          <Card className="stat-card">
+            <UserOutlined className="icon" />
+            <div className="value">{stats.clients}</div>
+            <div className="label">Počet klientů</div>
+          </Card>
+        </Col>
+        <Col xs={24} sm={12} md={8} lg={4}>
+          <Card className="stat-card">
+            <ToolOutlined className="icon" />
+            <div className="value">{stats.technicians}</div>
+            <div className="label">Počet techniků</div>
+          </Card>
+        </Col>
+        <Col xs={24} sm={12} md={8} lg={4}>
+          <Card className="stat-card">
+            <FileDoneOutlined className="icon" />
+            <div className="value">{stats.tasks}</div>
+            <div className="label">Aktivní úkoly</div>
+          </Card>
+        </Col>
+        <Col xs={24} sm={12} md={8} lg={4}>
+          <Card className="stat-card">
+            <AppstoreOutlined className="icon" />
+            <div className="value">{stats.warehouse}</div>
+            <div className="label">Materiály na skladě</div>
+          </Card>
+        </Col>
+        <Col xs={24} sm={12} md={8} lg={4}>
+          <Card className="stat-card">
+            <DollarOutlined className="icon" style={{ color: "#28a745" }} />
+            <div className="value">{stats.maxReportPrice} Kč</div>
+            <div className="label">Nejvyšší cena reportu</div>
+          </Card>
+        </Col>
+        <Col xs={24} sm={12} md={8} lg={4}>
+          <Card className="stat-card">
+            <DollarOutlined className="icon" style={{ color: "#28a745" }} />
+            <div className="value">{stats.totalReportPrice} Kč</div>
+            <div className="label">Celková cena reportů</div>
+          </Card>
+        </Col>
+      </Row>
 
-        {/* Sekce s posledními daty */}
-        <div className="row row-cards mt-4">
-          <div className="col-md-6">
-            <div className="card">
-              <div className="card-header">
-                <h4 className="card-title">Poslední přidaní klienti</h4>
-              </div>
-              <div className="card-body">
-                <ul>
-                  {recentClients.map((client) => (
-                    <li key={client.id}>{client.name}</li>
-                  ))}
-                </ul>
-              </div>
-            </div>
-          </div>
-          <div className="col-md-6">
-            <div className="card">
-              <div className="card-header">
-                <h4 className="card-title">Poslední přidané úkoly</h4>
-              </div>
-              <div className="card-body">
-                <ul>
-                  {recentTasks.map((task) => (
-                    <li key={task.id}>{task.title || "Neznámý úkol"}</li>
-                  ))}
-                </ul>
-              </div>
-            </div>
-          </div>
-        </div>
+      {/* Poslední klienti a úkoly */}
+      <Row gutter={[16, 16]} style={{ marginTop: "20px" }}>
+        <Col xs={24} md={12}>
+          <Card className="list-card" title="Poslední přidaní klienti">
+            <ul className="recent-list">
+              {recentClients.map((client) => (
+                <li key={client.id}>{client.name}</li>
+              ))}
+            </ul>
+          </Card>
+        </Col>
+        <Col xs={24} md={12}>
+          <Card className="list-card" title="Poslední přidané úkoly">
+            <ul className="recent-list">
+              {recentTasks.map((task) => (
+                <li key={task.id}>{task.title || "Neznámý úkol"}</li>
+              ))}
+            </ul>
+          </Card>
+        </Col>
+      </Row>
 
-        {/* Placeholder pro grafy */}
-        <div className="row row-cards mt-4">
-          <div className="col-md-6">
-            <div className="card">
-              <div className="card-header">
-                <h4 className="card-title">Výkon techniků</h4>
-              </div>
-              <div className="card-body">
-                <div id="chart-performance" style={{ height: 300 }}>
-                  {/* Zde můžeš přidat knihovnu na grafy */}
-                  <div className="text-muted text-center">Graf zatím není</div>
-                </div>
-              </div>
-            </div>
-          </div>
-          <div className="col-md-6">
-            <div className="card">
-              <div className="card-header">
-                <h4 className="card-title">Stav úkolů</h4>
-              </div>
-              <div className="card-body">
-                <div id="chart-tasks" style={{ height: 300 }}>
-                  {/* Zde můžeš přidat další graf */}
-                  <div className="text-muted text-center">Graf zatím není</div>
-                </div>
-              </div>
-            </div>
-          </div>
-        </div>
-      </div>
+      {/* Tabulka systémů */}
+      <Row gutter={[16, 16]} style={{ marginTop: "20px" }}>
+        <Col span={24}>
+          <Card
+            className="table-card"
+            title={`Poruchovost systémů (Nejvíce poruchový: ${mostFaultySystem})`}
+          >
+            <Table
+              columns={systemColumns}
+              dataSource={systemsTableData}
+              rowKey="system"
+              pagination={false}
+            />
+          </Card>
+        </Col>
+      </Row>
+
+      {/* Tabulka komponent */}
+      <Row gutter={[16, 16]} style={{ marginTop: "20px" }}>
+        <Col span={24}>
+          <Card
+            className="table-card"
+            title={`Poruchovost komponent (Nejvíce poruchová: ${mostFaultyComponent})`}
+          >
+            <Table
+              columns={componentColumns}
+              dataSource={componentsTableData}
+              rowKey="component"
+              pagination={false}
+            />
+          </Card>
+        </Col>
+      </Row>
+
+      {/* Grafy */}
+      <Row gutter={[16, 16]} style={{ marginTop: "20px" }}>
+        <Col xs={24} md={12} lg={8}>
+          <Card className="chart-card" title="Výkon techniků">
+            <Bar data={chartData} />
+          </Card>
+        </Col>
+        <Col xs={24} md={12} lg={8}>
+          <Card className="chart-card" title="Počet úkolů na měsíc">
+            <Bar data={monthlyTasksData} />
+          </Card>
+        </Col>
+        <Col xs={24} md={12} lg={8}>
+          <Card className="chart-card" title="Graf poruchovosti komponent">
+            <Bar data={componentStats} />
+          </Card>
+        </Col>
+      </Row>
+
+      {/* Graf systémů */}
+      <Row gutter={[16, 16]} style={{ marginTop: "20px", marginBottom: "20px" }}>
+        <Col span={24}>
+          <Card
+            className="chart-card"
+            title="Systémy - Servisy, poruchy a poruchovost na klienta"
+          >
+            <Bar data={systemStats} />
+          </Card>
+        </Col>
+      </Row>
     </div>
   );
 };

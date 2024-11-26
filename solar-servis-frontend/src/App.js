@@ -11,11 +11,16 @@ import Warehouse from "./pages/Warehouse";
 import Login from "./pages/Login";
 import CreateUser from "./pages/CreateUser";
 import UserManagement from "./pages/UserManagement"; // Import komponenty
+import Systems from "./pages/Systems";
+import Components from "./pages/Components";
+
 import { loginUser } from "./services/api"; // Import API funkce
 import "bootstrap/dist/css/bootstrap.min.css";
 import "bootstrap/dist/js/bootstrap.bundle.min.js";
 import SettingsPage from "./pages/SettingsPage"; // Import nové stránky
 import "@fortawesome/fontawesome-free/css/all.min.css";
+import './css/Global.css';
+
 
 function App() {
   const [loading, setLoading] = useState(false);
@@ -139,6 +144,15 @@ function App() {
                   isAuthenticated ? <Warehouse /> : <Navigate to="/login" />
                 }
               />
+              <Route
+  path="/systems"
+  element={isAuthenticated ? <Systems /> : <Navigate to="/login" />}
+/>
+<Route
+  path="/components"
+  element={isAuthenticated ? <Components /> : <Navigate to="/login" />}
+/>
+
               {/* Stránky přístupné pouze adminům */}
               <Route
                 path="/create-user"
