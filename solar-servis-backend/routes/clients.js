@@ -8,6 +8,7 @@ import slugify from 'slugify';
 import System from '../models/System.js';
 
 
+
 // Vytvoření ekvivalentu `__dirname` v ES Modulech
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
@@ -52,6 +53,21 @@ router.delete('/:id/files', async (req, res) => {
       res.status(500).json({ message: 'Chyba při mazání souboru nebo složky.', error: error.message });
   }
 });
+
+
+// Funkce pro získání klienta podle ID
+export const getClientById = async (clientId) => {
+  try {
+    const client = await Client.findByPk(clientId); // Použijte findByPk místo findById
+    if (!client) {
+      throw new Error('Klient nebyl nalezen');
+    }
+    return client;
+  } catch (error) {
+    console.error('Chyba při získávání klienta podle ID:', error);
+    throw error;
+  }
+};
 
 // Nastavení úložiště pro multer
 const storage = multer.diskStorage({
@@ -133,13 +149,31 @@ router.post('/', async (req, res) => {
   }
 });
 
+router.get('/:id', async (req, res) => {
+  try {
+    const client = await Client.findByPk(req.params.id, {
+      include: [
+        { model: System, as: 'system' }, // Zahrnutí systému
+      ],
+    });
+
+    if (!client) {
+      return res.status(404).json({ message: 'Klient nenalezen' });
+    }
+
+    res.status(200).json(client);
+  } catch (error) {
+    console.error('Chyba při získávání klienta:', error);
+    res.status(500).json({ message: 'Chyba při získávání klienta' });
+  }
+});
 
 
 // Získání všech klientů
 router.get('/', async (req, res) => {
   try {
     const clients = await Client.findAll({
-      attributes: ['id', 'name', 'email', 'phone', 'address', 'opCodes'],
+      attributes: ['id', 'name', 'email', 'phone', 'address','company', 'opCodes'],
       include: [
         {
           model: System,
@@ -234,29 +268,29 @@ router.get('/:id/files', async (req, res) => {
 // Vytvoření nové podsložky
 router.post('/:id/folders', async (req, res) => {
   const clientId = parseInt(req.params.id, 10); // Převod ID na číslo
-  const { folderPath } = req.body; // Celá cesta složky
+  const { folderPath } = req.body; // Relativní cesta ke složce
 
   if (isNaN(clientId)) {
     return res.status(400).json({ message: 'Neplatné ID klienta.' });
   }
 
   try {
-    const client = await Client.findByPk(clientId); // Vyhledání klienta
+    const client = await Client.findByPk(clientId); // Najděte klienta podle ID
     if (!client) {
       return res.status(404).json({ message: 'Klient nenalezen.' });
     }
 
-    const clientName = slugify(client.name, { lower: true, strict: true });
-    const fullPath = path.join(uploadDir, clientName, folderPath); // Složíme absolutní cestu
+    const clientName = slugify(client.name, { lower: true, strict: true }); // Získání slug jména klienta
+    const fullPath = path.join(uploadDir, clientName, folderPath || ''); // Použití jména klienta
 
     if (!fs.existsSync(fullPath)) {
-      fs.mkdirSync(fullPath, { recursive: true }); // Vytvoříme cestu
+      fs.mkdirSync(fullPath, { recursive: true }); // Vytvoření složky
     }
 
     res.status(201).json({
-      name: path.basename(folderPath), // Název složky
+      name: folderPath || clientName,
       isDirectory: true,
-      path: `/uploads/${clientName}/${folderPath}`.replace(/\\/g, '/'), // Vrací relativní cestu
+      path: `/uploads/${clientName}/${folderPath || ''}`.replace(/\\/g, '/'),
       updatedAt: new Date().toISOString(),
     });
   } catch (error) {
@@ -264,6 +298,7 @@ router.post('/:id/folders', async (req, res) => {
     res.status(500).json({ message: 'Chyba při vytváření složky', error: error.message });
   }
 });
+
 
 
 

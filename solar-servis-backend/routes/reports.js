@@ -101,6 +101,43 @@ router.post('/', async (req, res) => {
         });
     }
 });
+// Získání klienta podle ID včetně systému
+router.get('/clients/:id', async (req, res) => {
+    try {
+        const client = await Client.findByPk(req.params.id, {
+            include: [
+                {
+                    model: System,
+                    as: 'system', // Alias podle modelu
+                    attributes: ['id', 'name'], // Zahrňte pouze potřebné atributy
+                },
+            ],
+        });
+
+        if (!client) {
+            return res.status(404).json({ message: 'Klient nenalezen' });
+        }
+
+        res.status(200).json(client);
+    } catch (error) {
+        console.error('Chyba při získávání klienta:', error);
+        res.status(500).json({ message: 'Chyba při získávání klienta', error: error.message });
+    }
+});
+router.get('/clients', async (req, res) => {
+    try {
+        const clients = await Client.findAll({
+            include: [
+                { model: System, as: 'system', attributes: ['id', 'name'] }, // Přidej systém ke klientovi
+            ],
+        });
+        res.status(200).json(clients);
+    } catch (error) {
+        console.error('Chyba při načítání klientů:', error);
+        res.status(500).json({ message: 'Chyba při načítání klientů' });
+    }
+});
+
 
 // 2. Získání všech reportů
 router.get('/', async (req, res) => {

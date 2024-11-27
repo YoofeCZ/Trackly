@@ -61,6 +61,7 @@ const Dashboard = () => {
     datasets: [],
   });
 
+  
   const [componentsTableData, setComponentsTableData] = useState([]);
   const [mostFaultyComponent, setMostFaultyComponent] = useState("");
 
@@ -109,7 +110,17 @@ const Dashboard = () => {
             },
           ],
         });
-
+        setRecentTasks(
+          tasks.slice(-5).map((task) => {
+            const client = clients.find((client) => client.id === task.clientId);
+            console.log("Klient přiřazený k úkolu:", { task, client });
+            return {
+              ...task,
+              clientName: client ? client.name : "Neznámý klient",
+            };
+          })
+        );
+        
       // Počet klientů podle systému
       const systemClientsCount = clients.reduce((acc, client) => {
         const systemName = client.system?.name || "Neznámý systém";
@@ -373,13 +384,16 @@ if (componentsData.length > 0) {
           </Card>
         </Col>
         <Col xs={24} md={12}>
-          <Card className="list-card" title="Poslední přidané úkoly">
-            <ul className="recent-list">
-              {recentTasks.map((task) => (
-                <li key={task.id}>{task.title || "Neznámý úkol"}</li>
-              ))}
-            </ul>
-          </Card>
+        <Card className="list-card" title="Poslední přidané úkoly">
+  <ul className="recent-list">
+    {recentTasks.map((task) => (
+      <li key={task.id}>
+        {task.description || "Bez popisu"}
+      </li>
+    ))}
+  </ul>
+</Card>
+
         </Col>
       </Row>
 

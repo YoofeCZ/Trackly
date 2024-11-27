@@ -25,6 +25,7 @@ import DocumentPreview from "../utils/DocumentPreview";
 import Docxtemplater from "docxtemplater";
 import mammoth from "mammoth";
 import PizZip from "pizzip"; // Přidejte tento import
+import { getClientById } from '../services/api';
 import { getSystems, getComponentsBySystemId } from "../services/api"; // Add this import
 
 let API_URL;
@@ -230,17 +231,32 @@ const handleCloseDetails = () => {
 
   
   //Klient Info
-  const handleClientChange = (clientId) => {
-    const client = clients.find((c) => c.id === clientId);
-    setSelectedClient(client);
-  
-    // Automatické vyplnění OP kódu, pokud existuje
-    if (client && client.opCodes?.length > 0) {
-      form.setFieldsValue({ opCode: client.opCodes[0] }); // Vyplní první OP kód
-    } else {
-      form.setFieldsValue({ opCode: "" }); // Vymaže pole OP kódu, pokud klient nemá žádný
+  const handleClientChange = async (clientId) => {
+    try {
+        const clientDetails = await getClientById(clientId); // Nový API endpoint
+        setSelectedClient(clientDetails);
+
+        // Nastavení OP kódu
+        if (clientDetails.opCodes?.length > 0) {
+            form.setFieldsValue({ opCode: clientDetails.opCodes[0] });
+        } else {
+            form.setFieldsValue({ opCode: "" });
+        }
+
+        // Nastavení systému
+        if (clientDetails.system) {
+            form.setFieldsValue({ systemId: clientDetails.system.id });
+            handleSystemChange(clientDetails.system.id); // Načíst komponenty systému
+        } else {
+            form.setFieldsValue({ systemId: null });
+            setComponents([]);
+        }
+    } catch (error) {
+        console.error("Chyba při načítání detailů klienta:", error);
+        message.error("Nepodařilo se načíst detaily klienta.");
     }
-  };
+};
+
   
   const handleValuesChange = (changedValues, allValues) => {
     if (changedValues.opCode && selectedClient && selectedClient.opCodes?.length > 0) {
@@ -1056,6 +1072,7 @@ const customMaterialColumns = [
     ))}
   </Select>
 </Form.Item>
+
 
 <Form.Item
   name="componentId"

@@ -1,12 +1,11 @@
 //Frontednd/Clients.js
 import React, { useState, useEffect } from 'react';
 import { Table, Button, Modal, Form, Input, Typography, message } from 'antd';
-import { getClients, createClient, createClientFolder,deleteClient, updateClient } from '../services/api';
+import { getClients, createClient,deleteClient, updateClient } from '../services/api';
 import { useLocation } from 'react-router-dom';
-import { Upload, Breadcrumb, Select } from 'antd';
-import { PlusOutlined, UploadOutlined, DeleteOutlined, FolderOutlined, FileOutlined, DownloadOutlined  } from '@ant-design/icons';
-import { uploadClientFile } from '../services/api';
+import { Select } from 'antd';
 import { getSystems } from '../services/api';
+import FileManager from '../components/FileManager';
 
 let API_URL;
 
@@ -20,22 +19,19 @@ if (window.location.hostname === 'localhost') {
 
 const Clients = () => {
   const location = useLocation();
-  const [currentPath, setCurrentPath] = useState('');
   const searchParams = new URLSearchParams(location.search);
   const initialSearch = searchParams.get('search') || ''; // Načtení výchozího vyhledávacího termínu
   const [clients, setClients] = useState([]);
   const [filteredClients, setFilteredClients] = useState([]); // Pro filtrované klienty
-  const [files, setFiles] = useState([]);
+  const [files] = useState([]);
   const [filteredFiles, setFilteredFiles] = useState([]); // Pro filtrované soubory
   const [clientSearchTerm, setClientSearchTerm] = useState(initialSearch); // Vyhledávání klientů
-  const [fileSearchTerm, setFileSearchTerm] = useState(''); // Vyhledávání souborů
+  const [fileSearchTerm] = useState(''); // Vyhledávání souborů
   const [isModalOpen, setIsModalOpen] = useState(false);
-  const [isFileManagerVisible, setIsFileManagerVisible] = useState(false);
   const [currentClient, setCurrentClient] = useState(null);
-  const [isFolderModalOpen, setIsFolderModalOpen] = useState(false);
   const [systems, setSystems] = useState([]);
+  const [isFileManagerVisible, setIsFileManagerVisible] = useState(false);
 
-const [newFolderName, setNewFolderName] = useState('');
 
   const [newClient, setNewClient] = useState({  
     name: '',
@@ -43,7 +39,8 @@ const [newFolderName, setNewFolderName] = useState('');
     phone: '',
     address: '',
     company: '',
-    opCode: '', // Přidání pole opCode
+    opCode: '',
+    systemId: '', // Přidání pole opCode
   });
 
   useEffect(() => {
@@ -104,11 +101,23 @@ const [newFolderName, setNewFolderName] = useState('');
 
   const handleAddClient = async () => {
     try {
-      const response = await createClient(newClient); // newClient obsahuje opCodes
-      console.log(response); // Zkontrolujte, co backend vrací
+      const clientData = {
+        ...newClient,
+        systemId: newClient.systemId,
+      };
+      const response = await createClient(clientData);
+      console.log(response);
       message.success('Klient úspěšně přidán!');
       setIsModalOpen(false);
-      setNewClient({ name: '', email: '', phone: '', address: '', company: '', opCodes: [] }); // Reset
+      setNewClient({
+        name: '',
+        email: '',
+        phone: '',
+        address: '',
+        company: '',
+        opCodes: [],
+        systemId: '',
+      }); // Reset
       const updatedClients = await getClients();
       setClients(updatedClients);
     } catch (error) {
@@ -118,113 +127,6 @@ const [newFolderName, setNewFolderName] = useState('');
   };
   
   
-//Soubory
-const handleShowFiles = async (client, path = '') => {
-  if (!client) {
-    message.error("Klient není dostupný.");
-    return;
-  }
-
-  try {
-    setCurrentClient(client);
-    setIsFileManagerVisible(true);
-    setCurrentPath(path); // Nastavuje aktuální cestu správně
-
-    const response = await fetch(`${API_URL}/clients/${client.id}/files?path=${path}`);
-    const data = await response.json();
-
-    if (Array.isArray(data.files)) {
-      const formattedFiles = data.files.map((file) => ({
-        id: file.id || file.name,
-        name: file.name,
-        type: file.isDirectory ? "folder" : "file",
-        size: file.size || 0,
-        updatedAt: file.updatedAt || new Date().toISOString(),
-        path: path ? `${path}/${file.name}` : file.name, // Správná cesta k souboru
-      }));
-      setFiles(formattedFiles);
-    } else {
-      message.error("Chybný formát dat souborů.");
-    }
-  } catch (error) {
-    console.error("Chyba při načítání souborů:", error);
-    message.error("Chyba při načítání souborů.");
-  }
-};
-
-
-const handleFileDownload = (files) => {
-  files.forEach((file) => {
-    if (!file.isDirectory) {
-      const fileURL = file.path.startsWith('/uploads')
-        ? `http://localhost:5000${file.path}`
-        : `http://localhost:5000/uploads/${file.path}`;
-
-      const link = document.createElement('a');
-      link.href = fileURL;
-      link.download = file.name;
-      document.body.appendChild(link);
-      link.click();
-      document.body.removeChild(link);
-    } else {
-      message.warning('Složky nelze stáhnout.');
-    }
-  });
-};
-
-  
-  
-
-const handleCreateFolder = async () => {
-  if (!newFolderName.trim()) {
-    message.error('Název složky nemůže být prázdný.');
-    return;
-  }
-
-  try {
-    // Složíme správnou cestu ke složce
-    const folderPath = currentPath ? `${currentPath}/${newFolderName}` : newFolderName;
-
-    // Posíláme cestu na backend
-    const response = await createClientFolder(currentClient.id, folderPath);
-    message.success('Složka byla vytvořena.');
-    setIsFolderModalOpen(false);
-    setNewFolderName(''); // Reset názvu
-    handleShowFiles(currentClient, currentPath); // Aktualizace seznamu souborů
-  } catch (error) {
-    message.error('Chyba při vytváření složky.');
-    console.error('Chyba při vytváření složky:', error);
-  }
-};
-
-  
-  
-  
-  
-  
-  const handleDelete = async (file) => {
-    Modal.confirm({
-      title: `Opravdu chcete smazat ${file.name}?`,
-      okText: 'Ano',
-      okType: 'danger',
-      cancelText: 'Ne',
-      onOk: async () => {
-        try {
-          await fetch(`${API_URL}/clients/${currentClient.id}/files`, {
-            method: 'DELETE',
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({ path: file.path }),
-          });
-          message.success(`Položka ${file.name} byla odstraněna.`);
-          handleShowFiles(currentClient, currentPath); // Aktualizace seznamu
-        } catch (error) {
-          message.error('Chyba při mazání souboru nebo složky.');
-        }
-      },
-    });
-  };
-  
-
   
   const handleDeleteClient = async (clientId) => {
     try {
@@ -243,11 +145,15 @@ const handleCreateFolder = async () => {
   
   const handleUpdateClient = async () => {
     try {
-      await updateClient(currentClient.id, currentClient); // Odesíláme i opCode
+      const clientData = {
+        ...currentClient,
+        systemId: currentClient.systemId || (currentClient.system && currentClient.system.id),
+      };
+      await updateClient(currentClient.id, clientData);
       message.success('Klient úspěšně aktualizován!');
       setClients((prevClients) =>
         prevClients.map((client) =>
-          client.id === currentClient.id ? currentClient : client
+          client.id === currentClient.id ? { ...client, ...clientData } : client
         )
       );
       setIsModalOpen(false);
@@ -258,6 +164,7 @@ const handleCreateFolder = async () => {
     }
   };
   
+  
 
   
   const handleEditClient = (client) => {
@@ -265,14 +172,10 @@ const handleCreateFolder = async () => {
     setIsModalOpen(true); // Otevře modal pro úpravu
   };
 
-  const handleFileOpen = (file) => {
-    const fileURL = file.path.startsWith('/uploads')
-      ? `http://localhost:5000${file.path}` // Cesta už obsahuje /uploads
-      : `http://localhost:5000/uploads/${file.path}`; // Přidáme /uploads jen pokud chybí
-  
-    window.open(fileURL, '_blank');
+  const handleShowFileManager = (client) => {
+    setCurrentClient(client); // Nastaví aktuálního klienta
+    setIsFileManagerVisible(true); // Zobrazí modál
   };
-  
   
 
   const columns = [
@@ -297,10 +200,17 @@ const handleCreateFolder = async () => {
       key: 'address',
     },
     {
+      title: 'Systém',
+      key: 'system',
+      render: (text, client) => client.system ? client.system.name : '',
+    },
+    {
       title: 'Firma',
       dataIndex: 'company',
       key: 'company',
+      render: (company) => company || '',
     },
+    
     {
       title: "OP",
       dataIndex: "opCodes",
@@ -313,11 +223,11 @@ const handleCreateFolder = async () => {
       key: 'action',
       render: (text, client) => (
         <div style={{ display: 'flex', gap: '10px' }}>
-          <Button type="link" onClick={() => handleShowFiles(client)}>
-            Zobrazit Soubory
-          </Button>
           <Button type="link" onClick={() => handleEditClient(client)}>
             Upravit Klienta
+          </Button>
+          <Button type="link" onClick={() => handleShowFileManager(client)}>
+            Zobrazit Soubory
           </Button>
           <Button type="link" danger onClick={() => handleDeleteClient(client.id)}>
             Smazat Klienta
@@ -325,6 +235,7 @@ const handleCreateFolder = async () => {
         </div>
       ),
     },
+    
   ];
   
   
@@ -400,7 +311,11 @@ const handleCreateFolder = async () => {
 
 <Form.Item label="Systém" required>
   <Select
-    value={currentClient?.systemId || newClient.systemId}
+    value={
+      currentClient
+        ? currentClient.systemId || (currentClient.system && currentClient.system.id)
+        : newClient.systemId
+    }
     onChange={(value) =>
       currentClient
         ? setCurrentClient({ ...currentClient, systemId: value })
@@ -415,6 +330,8 @@ const handleCreateFolder = async () => {
     ))}
   </Select>
 </Form.Item>
+
+
     <Form.Item label="Firma (volitelné)">
       <Input
         value={currentClient?.company || newClient.company}
@@ -460,178 +377,18 @@ const handleCreateFolder = async () => {
 
   </Form>
 </Modal>
-
-
-
-
-
 <Modal
   title={`Soubory klienta: ${currentClient?.name || ''}`}
   open={isFileManagerVisible}
-  onCancel={() => setIsFileManagerVisible(false)}
+  onCancel={() => setIsFileManagerVisible(false)} // Zavře modál
   footer={null}
-  width="80%"
+  width="80%" // Nastavení šířky modálu
 >
-  <div>
-    {/* Breadcrumb navigace */}
-    <Breadcrumb style={{ marginBottom: '16px' }}>
-      <Breadcrumb.Item>
-        <Button type="link" onClick={() => handleShowFiles(currentClient, '')}>
-          Kořen
-        </Button>
-      </Breadcrumb.Item>
-      {currentPath.split('/').map((folder, index, array) => (
-        <Breadcrumb.Item key={index}>
-          <Button
-            type="link"
-            onClick={() =>
-              handleShowFiles(currentClient, array.slice(0, index + 1).join('/'))
-            }
-          >
-            {folder}
-          </Button>
-        </Breadcrumb.Item>
-      ))}
-    </Breadcrumb>
-
-    {/* Akce: Vytvořit složku, nahrát soubor */}
-    <div style={{ marginBottom: '16px' }}>
-    <Button
-  type="primary"
-  icon={<PlusOutlined />}
-  onClick={() => setIsFolderModalOpen(true)}
-  style={{ marginRight: '8px' }}
->
-  Vytvořit složku
-</Button>
-<Modal
-  title="Vytvořit novou složku"
-  open={isFolderModalOpen}
-  onOk={handleCreateFolder}
-  onCancel={() => {
-    setIsFolderModalOpen(false);
-    setNewFolderName(''); // Reset názvu při zavření
-  }}
-  okText="Vytvořit"
-  cancelText="Zrušit"
->
-  <Form layout="vertical">
-    <Form.Item label="Název složky" required>
-      <Input
-        value={newFolderName}
-        onChange={(e) => setNewFolderName(e.target.value)}
-        placeholder="Zadejte název nové složky"
-      />
-    </Form.Item>
-  </Form>
+  <FileManager
+    clientId={currentClient?.id}
+    onClose={() => setIsFileManagerVisible(false)} // Zavření file manageru
+  />
 </Modal>
-
-      <Upload
-        customRequest={async ({ file }) => {
-          try {
-            const formData = new FormData();
-            formData.append('file', file);
-            await uploadClientFile(currentClient.id, formData);
-            message.success(`Soubor ${file.name} byl nahrán.`);
-            handleShowFiles(currentClient, currentPath); // Aktualizace seznamu souborů
-          } catch (error) {
-            message.error('Chyba při nahrávání souboru.');
-          }
-        }}
-        showUploadList={false}
-      >
-        <Button icon={<UploadOutlined />}>Nahrát soubor</Button>
-      </Upload>
-      <Input
-  placeholder="Vyhledat soubor nebo složku"
-  value={fileSearchTerm}
-  onChange={(e) => setFileSearchTerm(e.target.value)}
-  style={{ marginBottom: '16px', width: '300px' }}
-/>
-
-    </div>
-
-    {/* Tabulka souborů a složek */}
-    <Table
-      dataSource={filteredFiles} // Použijeme filtrované soubory
-      columns={[
-        {
-          title: 'Název',
-    dataIndex: 'name',
-    key: 'name',
-    render: (text, record) => (
-      record.type === 'folder' ? (
-        <Button
-          type="link"
-          icon={<FolderOutlined />}
-          onClick={() => handleShowFiles(currentClient, record.path)}
-        >
-          {text}
-        </Button>
-      ) : (
-        <span>
-          <FileOutlined style={{ marginRight: '8px' }} />
-          {text}
-        </span>
-      )
-    ),
-  },
-  {
-    title: 'Velikost',
-    dataIndex: 'size',
-    key: 'size',
-    render: (size) => (size ? `${(size / 1024).toFixed(2)} KB` : '-'),
-  },
-  {
-    title: 'Poslední změna',
-    dataIndex: 'updatedAt',
-    key: 'updatedAt',
-    render: (date) => new Date(date).toLocaleString(),
-  },
-  {
-    title: 'Akce',
-    key: 'actions',
-    render: (_, record) => (
-      <div>
-        <Button
-          type="link"
-          onClick={() =>
-            record.type === 'folder'
-              ? handleShowFiles(currentClient, record.path)
-              : handleFileOpen(record) // Nyní volá funkci
-          }
-        >
-          Otevřít
-        </Button>
-        {record.type === 'file' && (
-          <Button
-            type="link"
-            onClick={() => handleFileDownload([record])} // Funkce je nyní volána
-            icon={<DownloadOutlined />}
-          >
-            Stáhnout
-          </Button>
-        )}
-        <Button
-          type="link"
-          danger
-          icon={<DeleteOutlined />}
-          onClick={() => handleDelete(record)}
-        >
-          Smazat
-        </Button>
-      </div>
-    ),
-  },
-      ]}
-      rowKey="path"
-    />
-  </div>
-</Modal>
-
-
-
-
 
     </div>
   );

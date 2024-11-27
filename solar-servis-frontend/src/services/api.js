@@ -262,6 +262,17 @@ export const getClients = async () => {
     throw error;
   }
 };
+export const getClientById = async (clientId) => {
+  try {
+    const response = await axios.get(`${API_URL}/clients/${clientId}`);
+    return response.data;
+  } catch (error) {
+    console.error('Chyba při načítání klienta:', error);
+    throw error;
+  }
+};
+
+
 
 // Funkce pro vytvoření nového klienta
 export const createClient = async (clientData) => {
