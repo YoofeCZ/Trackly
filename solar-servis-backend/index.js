@@ -18,6 +18,7 @@ import settingsRouter from './routes/settings.js'; // Import routeru nastavení
 import systemsRoutes from './routes/systems.js';
 import componentsRouter from './routes/components.js';
 import filesRouter from './routes/files.js';
+import subtaskRoutes from './routes/subtasks.js';
 
 import './models/associations.js'; // Importujte asociace po definici modelů
 
@@ -49,6 +50,7 @@ app.use('/api/systems', systemsRoutes); // Připojení routes
 app.use('/api/components', componentsRouter);
 app.use('/api', filesRouter);//Správce Souborů
 app.use('/api/clients', clientRoutes);
+app.use('/api', subtaskRoutes); // Přidání routeru pro podúkoly
 
 
 

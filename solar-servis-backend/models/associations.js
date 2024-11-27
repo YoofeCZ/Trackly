@@ -5,6 +5,8 @@ import Client from './Client.js';
 import Technician from './Technician.js';
 import System from './System.js';
 import Component from './Component.js';
+import Task from './Task.js';
+import Subtask from './Subtask.js';
 
 // Definice asociací
 
@@ -31,6 +33,9 @@ Report.belongsTo(Component, { foreignKey: 'componentId', as: 'component' });
 //Asociace mezi System a Client
 System.hasMany(Client, { foreignKey: 'systemId', as: 'clients' });
 Client.belongsTo(System, { foreignKey: 'systemId', as: 'system' });
+
+Task.hasMany(Subtask, { foreignKey: 'taskId', as: 'subtasks' });
+Subtask.belongsTo(Task, { foreignKey: 'taskId', as: 'task' });
 
 // Export všech modelů pro snadný import v jiných částech aplikace
 export {

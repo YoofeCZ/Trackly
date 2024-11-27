@@ -1,20 +1,27 @@
 // routes/tasks.js
 import express from 'express';
 import Task from '../models/Task.js';
+import Subtask from '../models/Subtask.js';
 
 const router = express.Router();
 
 // Přidání nového úkolu (POST /api/tasks)
 router.post('/', async (req, res) => {
-    try {
-      console.log('Request body:', req.body); // Přidej logování zde
-      const task = await Task.create(req.body);
-      res.status(201).json(task);
-    } catch (error) {
-      console.error('Chyba při vytváření úkolu:', error);
-      res.status(400).json({ message: 'Chyba při vytváření úkolu', error: error.message });
+  try {
+    const { type, clientId, ...rest } = req.body;
+
+    // Pokud je typ "task", klient není vyžadován
+    if (type === 'task' && clientId) {
+      return res.status(400).json({ message: 'Podúkol nesmí mít přiřazeného klienta.' });
     }
-  });
+
+    const newTask = await Task.create({ type, clientId: type === 'task' ? null : clientId, ...rest });
+    res.status(201).json(newTask);
+  } catch (error) {
+    res.status(500).json({ message: 'Chyba při vytváření úkolu.', error: error.message });
+  }
+});
+
   
 
 // Získání úkolů (GET /api/tasks nebo GET /api/tasks?technicianId=...)
@@ -22,11 +29,28 @@ router.get('/', async (req, res) => {
   try {
     const { technicianId } = req.query;
     let tasks;
+    const now = new Date();
+
     if (technicianId) {
-      tasks = await Task.findAll({ where: { technicianId } });
+      tasks = await Task.findAll({
+        where: { technicianId },
+        include: { model: Subtask, as: 'subtasks' }, // Přidání podúkolů
+      });
     } else {
-      tasks = await Task.findAll(); // Získání všech úkolů, pokud není technicianId zadáno
+      tasks = await Task.findAll({
+        include: { model: Subtask, as: 'subtasks' }, // Přidání podúkolů
+      });
     }
+
+    // Aktualizace stavu podle času
+    await Promise.all(
+      tasks.map(async (task) => {
+        if (task.type === 'service' && new Date(task.dueDate) < now && task.status !== 'completed') {
+          await task.update({ status: 'missed' });
+        }
+      })
+    );
+
     res.status(200).json(tasks);
   } catch (error) {
     res.status(500).json({ message: 'Chyba při získávání úkolů', error: error.message });
@@ -51,16 +75,35 @@ router.get('/:id', async (req, res) => {
 router.put('/:id', async (req, res) => {
   try {
     const task = await Task.findByPk(req.params.id);
-    if (task) {
-      await task.update(req.body);
-      res.status(200).json(task);
-    } else {
-      res.status(404).json({ message: 'Úkol nenalezen' });
+
+    if (!task) {
+      return res.status(404).json({ message: 'Úkol nenalezen' });
     }
+
+    // Povinnost zadat důvod při označení jako nesplněné
+    if (req.body.status === 'missed' && !req.body.reason) {
+      console.warn('Úkol označen jako nesplněný bez uvedení důvodu.');
+    }
+    
+
+    await task.update(req.body);
+    res.status(200).json(task);
   } catch (error) {
     res.status(400).json({ message: 'Chyba při aktualizaci úkolu', error: error.message });
   }
 });
+
+router.get('/tasks', async (req, res) => {
+  try {
+    const tasks = await Task.findAll({
+      include: { model: Subtask, as: 'subtasks' },
+    });
+    res.status(200).json(tasks);
+  } catch (error) {
+    res.status(500).json({ message: 'Chyba při načítání úkolů.', error: error.message });
+  }
+});
+
 
 // Smazání úkolu podle ID (DELETE /api/tasks/:id)
 router.delete('/:id', async (req, res) => {

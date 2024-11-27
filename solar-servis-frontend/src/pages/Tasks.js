@@ -41,17 +41,34 @@ const Tasks = () => {
           getClients(),
           getTechnicians(),
         ]);
-        setTasks(tasksData);
-        setFilteredTasks(tasksData);
+  
+        // Aktualizace stavu na základě splněných podmínek
+        const now = dayjs();
+        const updatedTasks = await Promise.all(
+          tasksData.map(async (task) => {
+            if (task.dueDate && dayjs(task.dueDate).isBefore(now) && task.status !== 'completed') {
+              // Aktualizuj pouze pokud je třeba
+              await updateTask(task.id, { ...task, status: 'missed' });
+              return { ...task, status: 'missed' }; // Aktualizovaný stav
+            }
+            return task;
+          })
+        );
+  
+        // Nastav aktualizované úkoly a další data
+        setTasks(updatedTasks);
+        setFilteredTasks(updatedTasks);
         setClients(clientsData);
         setTechnicians(techniciansData);
       } catch (error) {
         message.error('Chyba při načítání dat.');
       }
     };
-
+  
     fetchData();
-  }, []);
+  }, []); // Prázdné pole závislostí zajistí, že se tento efekt spustí pouze jednou při načtení komponenty.
+  
+  
 
   const handleSearch = (value) => {
     setSearchTerm(value);
@@ -86,11 +103,12 @@ const Tasks = () => {
 
   const handleSaveTask = async () => {
     try {
+      // Pokud je editace zapnutá
       if (isEditMode) {
-        await updateTask(newTask.id, newTask);
+        await updateTask(newTask.id, newTask); // Zahrnuje subtasks
         message.success('Úkol byl úspěšně aktualizován.');
       } else {
-        await createTask(newTask);
+        await createTask(newTask); // Zahrnuje subtasks
         message.success('Úkol byl úspěšně přidán.');
       }
   
@@ -99,11 +117,46 @@ const Tasks = () => {
       setTasks(updatedTasks);
       setFilteredTasks(updatedTasks);
   
+      // Reset modal a nový úkol
       setIsModalOpen(false);
-      setNewTask({ description: '', dueDate: '', clientId: '', technicianId: '' });
+      setNewTask({ description: '', dueDate: '', clientId: '', technicianId: '', subtasks: [] });
     } catch (error) {
       message.error('Chyba při ukládání úkolu.');
       console.error('Chyba při ukládání:', error);
+    }
+  };
+  
+  const handleSubtaskToggle = async (index) => {
+    const updatedSubtasks = [...selectedTask.subtasks];
+    updatedSubtasks[index].completed = true;
+  
+    // Zkontroluj, zda jsou všechny podúkoly splněné
+    const allCompleted = updatedSubtasks.every((subtask) => subtask.completed);
+  
+    try {
+      // Odeslání aktualizovaných podúkolů na backend
+      await updateTask(selectedTask.id, {
+        ...selectedTask,
+        subtasks: updatedSubtasks,
+        status: allCompleted ? 'completed' : selectedTask.status, // Aktualizace stavu úkolu
+      });
+  
+      message.success('Podúkol byl označen jako splněný.');
+      
+      // Aktualizuj úkoly v seznamu
+      const updatedTasks = await getTasks();
+      setTasks(updatedTasks);
+      setFilteredTasks(updatedTasks);
+  
+      // Aktualizuj detail aktuálně vybraného úkolu
+      setSelectedTask({ 
+        ...selectedTask, 
+        subtasks: updatedSubtasks, 
+        status: allCompleted ? 'completed' : selectedTask.status 
+      });
+    } catch (error) {
+      message.error('Chyba při aktualizaci podúkolu.');
+      console.error('Chyba při aktualizaci podúkolu:', error);
     }
   };
   
@@ -120,6 +173,24 @@ const Tasks = () => {
     }
   };
 
+  const handleUpdateTaskStatus = async (task, status) => {
+    if (status === 'missed' && !task.reason) {
+      const reason = prompt('Zadejte důvod nesplnění:');
+      if (!reason) return;
+      task.reason = reason;
+    }
+  
+    try {
+      await updateTask(task.id, { ...task, status });
+      message.success('Stav úkolu byl aktualizován.');
+      const updatedTasks = await getTasks();
+      setTasks(updatedTasks);
+      setFilteredTasks(updatedTasks);
+    } catch (error) {
+      message.error('Chyba při aktualizaci stavu úkolu.');
+    }
+  };
+  
   const handleViewDetails = (task) => {
     setSelectedTask(task);
     setIsDetailModalOpen(true);
@@ -138,10 +209,34 @@ const Tasks = () => {
       key: 'description',
     },
     {
+      title: 'Podúkoly',
+      dataIndex: 'subtasks',
+      key: 'subtasks',
+      render: (subtasks) =>
+        subtasks && subtasks.length > 0
+          ? `${subtasks.filter((s) => s.completed).length}/${subtasks.length} splněno`
+          : 'Žádné podúkoly',
+    },
+    
+    {
       title: 'Termín',
       dataIndex: 'dueDate',
       key: 'dueDate',
       render: (date) => dayjs(date).format('YYYY-MM-DD HH:mm'),
+    },
+    {
+      title: 'Stav',
+      dataIndex: 'status',
+      key: 'status',
+      render: (status) => {
+        const statusMap = {
+          upcoming: 'Nadcházející',
+          in_progress: 'Probíhá',
+          completed: 'Splněný',
+          missed: 'Nesplněný',
+        };
+        return statusMap[status] || 'Neznámý';
+      },
     },
     {
       title: 'Klient',
@@ -190,6 +285,21 @@ const Tasks = () => {
       key: 'action',
       render: (_, task) => (
         <div style={{ display: 'flex', gap: '10px' }}>
+          <Button
+            type="link"
+            onClick={() => handleUpdateTaskStatus(task, 'completed')}
+            disabled={task.status === 'completed'}
+          >
+            Označit jako splněné
+          </Button>
+          <Button
+            type="link"
+            danger
+            onClick={() => handleUpdateTaskStatus(task, 'missed')}
+            disabled={task.status === 'missed'}
+          >
+            Označit jako nesplněné
+          </Button>
           <Button type="link" onClick={() => handleEditTask(task)}>
             Upravit
           </Button>
@@ -204,44 +314,85 @@ const Tasks = () => {
     },
   ];
   
+  
 
   return (
     <div>
-      <Typography.Title level={2}>Úkoly</Typography.Title>
+      <Typography.Title level={2}>Plánovač úkolů a servisů</Typography.Title>
       <Input.Search
-        placeholder="Vyhledat úkoly podle popisu, klienta nebo technika"
+        placeholder="Vyhledat podle popisu, klienta nebo technika"
         value={searchTerm}
         onChange={(e) => handleSearch(e.target.value)}
         style={{ marginBottom: '20px' }}
       />
       <Button type="primary" onClick={handleAddTask} style={{ marginBottom: '20px' }}>
-        Přidat Úkol
+        Přidat Úkol/Servis
       </Button>
       <Table dataSource={filteredTasks} columns={columns} rowKey="id" />
-
+  
+      {/* Modal pro přidání/úpravu úkolu nebo servisu */}
       <Modal
-        title={isEditMode ? 'Upravit Úkol' : 'Přidat Úkol'}
+        title={isEditMode ? 'Upravit Úkol/Servis' : 'Přidat Úkol/Servis'}
         open={isModalOpen}
         onCancel={handleCloseModal}
         onOk={handleSaveTask}
       >
         <Form layout="vertical">
-        <Form.Item
-  label="Popis"
-  validateStatus={newTask.description.length > MAX_DESCRIPTION_LENGTH ? 'error' : ''}
-  help={newTask.description.length > MAX_DESCRIPTION_LENGTH ? 'Maximální délka je 255 znaků' : ''}
->
-  <TextArea
-    value={newTask.description}
-    onChange={(e) => setNewTask({ ...newTask, description: e.target.value })}
-    rows={3}
-    maxLength={MAX_DESCRIPTION_LENGTH}
-  />
-  <Typography.Text type={newTask.description.length > MAX_DESCRIPTION_LENGTH ? 'danger' : 'secondary'}>
-    {newTask.description.length}/{MAX_DESCRIPTION_LENGTH} znaků
-  </Typography.Text>
-</Form.Item>
-
+          <Form.Item label="Typ">
+            <Select
+              value={newTask.type}
+              onChange={(value) => setNewTask({ ...newTask, type: value })}
+              placeholder="Vyberte typ"
+            >
+              <Option value="task">Úkol</Option>
+              <Option value="service">Servis</Option>
+            </Select>
+          </Form.Item>
+  
+          <Form.Item
+            label="Popis"
+            validateStatus={newTask.description.length > MAX_DESCRIPTION_LENGTH ? 'error' : ''}
+            help={newTask.description.length > MAX_DESCRIPTION_LENGTH ? 'Maximální délka je 255 znaků' : ''}
+            required={newTask.type === 'service'} // Povinné jen u servisu
+          >
+            <TextArea
+              value={newTask.description}
+              onChange={(e) => setNewTask({ ...newTask, description: e.target.value })}
+              rows={3}
+              maxLength={MAX_DESCRIPTION_LENGTH}
+            />
+            <Typography.Text type={newTask.description.length > MAX_DESCRIPTION_LENGTH ? 'danger' : 'secondary'}>
+              {newTask.description.length}/{MAX_DESCRIPTION_LENGTH} znaků
+            </Typography.Text>
+          </Form.Item>
+  
+          {newTask.type === 'task' && (
+            <Form.Item label="Podúkoly">
+              {(newTask.subtasks || []).map((subtask, index) => (
+                <Input
+                  key={index}
+                  placeholder={`Podúkol ${index + 1}`}
+                  value={subtask.description}
+                  onChange={(e) => {
+                    const updatedSubtasks = [...newTask.subtasks];
+                    updatedSubtasks[index].description = e.target.value;
+                    setNewTask({ ...newTask, subtasks: updatedSubtasks });
+                  }}
+                  style={{ marginBottom: '10px' }}
+                />
+              ))}
+              <Button
+                type="dashed"
+                onClick={() => {
+                  const updatedSubtasks = [...(newTask.subtasks || []), { description: '', completed: false }];
+                  setNewTask({ ...newTask, subtasks: updatedSubtasks });
+                }}
+              >
+                Přidat podúkol
+              </Button>
+            </Form.Item>
+          )}
+  
           <Form.Item label="Termín">
             <DatePicker
               showTime={{ minuteStep: 15 }}
@@ -254,19 +405,23 @@ const Tasks = () => {
               disabledDate={(current) => current && current < dayjs().startOf('day')}
             />
           </Form.Item>
-          <Form.Item label="Klient">
-            <Select
-              value={newTask.clientId}
-              onChange={(value) => setNewTask({ ...newTask, clientId: value })}
-              placeholder="Vyberte klienta"
-            >
-              {clients.map((client) => (
-                <Option key={client.id} value={client.id}>
-                  {client.name}
-                </Option>
-              ))}
-            </Select>
-          </Form.Item>
+  
+          {newTask.type !== 'task' && (
+  <Form.Item label="Klient">
+    <Select
+      value={newTask.clientId}
+      onChange={(value) => setNewTask({ ...newTask, clientId: value })}
+      placeholder="Vyberte klienta (volitelně)"
+    >
+      {clients.map((client) => (
+        <Option key={client.id} value={client.id}>
+          {client.name}
+        </Option>
+      ))}
+    </Select>
+  </Form.Item>
+)}
+  
           <Form.Item label="Technik">
             <Select
               value={newTask.technicianId}
@@ -282,37 +437,77 @@ const Tasks = () => {
           </Form.Item>
         </Form>
       </Modal>
-
+  
+      {/* Modal pro zobrazení detailů */}
       <Modal
-        title="Detaily Úkolu"
+        title="Detaily Úkolu/Servisu"
         open={isDetailModalOpen}
         onCancel={() => setIsDetailModalOpen(false)}
         footer={null}
       >
         {selectedTask && (
           <>
+            <Typography.Title level={5}>Typ</Typography.Title>
+            <Typography>{selectedTask.type === 'task' ? 'Úkol' : 'Servis'}</Typography>
+  
             <Typography.Title level={5}>Popis</Typography.Title>
             <Typography>{selectedTask.description || 'N/A'}</Typography>
-
+  
             <Typography.Title level={5}>Datum splnění</Typography.Title>
             <Typography>
               {selectedTask.dueDate ? dayjs(selectedTask.dueDate).format('YYYY-MM-DD HH:mm') : 'N/A'}
             </Typography>
-
+  
             <Typography.Title level={5}>Klient</Typography.Title>
             <Typography>
               {clients.find((client) => client.id === selectedTask.clientId)?.name || 'N/A'}
             </Typography>
-
+  
             <Typography.Title level={5}>Technik</Typography.Title>
             <Typography>
               {technicians.find((tech) => tech.id === selectedTask.technicianId)?.name || 'N/A'}
             </Typography>
+  
+            <Typography.Title level={5}>Stav</Typography.Title>
+            <Typography>{selectedTask.status || 'Neznámý'}</Typography>
+  
+            {selectedTask.type === 'task' && (
+              <>
+                <Typography.Title level={5}>Podúkoly</Typography.Title>
+                {selectedTask.subtasks && selectedTask.subtasks.length > 0 ? (
+                  <div>
+                    {selectedTask.subtasks.map((subtask, index) => (
+                      <div key={index} style={{ display: 'flex', alignItems: 'center', marginBottom: '10px' }}>
+                        <Input value={subtask.description} readOnly style={{ marginRight: '10px', flex: 1 }} />
+                        <Button
+                          type="primary"
+                          onClick={() => handleSubtaskToggle(index)}
+                          disabled={subtask.completed}
+                        >
+                          {subtask.completed ? 'Splněno' : 'Označit jako splněné'}
+                        </Button>
+                      </div>
+                    ))}
+                  </div>
+                ) : (
+                  <Typography>Žádné podúkoly.</Typography>
+                )}
+              </>
+            )}
+  
+            {selectedTask.reason && (
+              <>
+                <Typography.Title level={5}>Důvod nesplnění</Typography.Title>
+                <Typography>{selectedTask.reason}</Typography>
+              </>
+            )}
           </>
         )}
       </Modal>
     </div>
   );
+  
+  
 };
 
 export default Tasks;

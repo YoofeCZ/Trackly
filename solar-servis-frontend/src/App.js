@@ -13,6 +13,9 @@ import CreateUser from "./pages/CreateUser";
 import UserManagement from "./pages/UserManagement"; // Import komponenty
 import Systems from "./pages/Systems";
 import Components from "./pages/Components";
+import CalendarPage from "./pages/Calendar"; // Import nové stránky kalendáře
+import Changelog from "./components/Changelog"; // Cesta k souboru s komponentou
+
 
 import { loginUser } from "./services/api"; // Import API funkce
 import "bootstrap/dist/css/bootstrap.min.css";
@@ -79,10 +82,12 @@ function App() {
     localStorage.removeItem("token"); // Odstranění tokenu z localStorage
   };
 
+
+  
   return (
     <>
       {isSplashVisible ? (
-        <SplashScreen isFading={isFading} /> // Přidá fade-out efekt
+        <SplashScreen isFading={isFading} />
       ) : (
         <>
           {isAuthenticated && <Navbar onLogout={handleLogout} />}
@@ -93,99 +98,151 @@ function App() {
               </div>
             </div>
           ) : (
-            <Routes>
-              {/* Login stránka */}
-              <Route
-                path="/login"
-                element={
-                  isAuthenticated ? (
-                    <Navigate to="/dashboard" />
-                  ) : (
-                    <Login onLogin={handleLogin} />
-                  )
-                }
-              />
-              {/* Přesměrování na login při přístupu na root */}
-              <Route path="/" element={<Navigate to="/login" />} />
-              {/* Chráněné stránky */}
-              <Route
-                path="/dashboard"
-                element={
-                  isAuthenticated ? <Dashboard /> : <Navigate to="/login" />
-                }
-              />
-              <Route
-                path="/technicians"
-                element={
-                  isAuthenticated ? <Technicians /> : <Navigate to="/login" />
-                }
-              />
-              <Route
-                path="/clients"
-                element={
-                  isAuthenticated ? <Clients /> : <Navigate to="/login" />
-                }
-              />
-              <Route
-                path="/reports"
-                element={
-                  isAuthenticated ? <Reports /> : <Navigate to="/login" />
-                }
-              />
-              <Route
-                path="/tasks"
-                element={
-                  isAuthenticated ? <Tasks /> : <Navigate to="/login" />
-                }
-              />
-              <Route
-                path="/warehouse"
-                element={
-                  isAuthenticated ? <Warehouse /> : <Navigate to="/login" />
-                }
-              />
-              <Route
-  path="/systems"
-  element={isAuthenticated ? <Systems /> : <Navigate to="/login" />}
-/>
-<Route
-  path="/components"
-  element={isAuthenticated ? <Components /> : <Navigate to="/login" />}
+            <>
+<Changelog
+  changelogKey="v1.0.1" // Změňte tento klíč při každé nové verzi changelogu
+  changelogText={
+    <>
+      <h2>Novinky ve verzi v1.0.1</h2>
+      <ul style={{ textAlign: "left" }}>
+        <li>
+          🆕 <b>Changelog:</b> Přidán systém changelogu, který zobrazuje novinky
+          aplikace po spuštění. Zavřený changelog se znovu nezobrazí, dokud
+          není vytvořen nový.
+        </li>
+        <li>
+          🗓️ <b>Kalendář:</b> Nová stránka s kalendářem pro plánování úkolů a
+          servisních aktivit. Kalendář je dostupný na nové adrese{" "}
+          <code>/calendar</code>.
+        </li>
+        <li>
+          ✨ <b>Vylepšení designu:</b> Větší a centrovaný changelog s moderním
+          vzhledem. Text je přehlednější a design plně responsivní.
+        </li>
+        <li>
+          🔧 <b>Modul úkolů:</b> Modul "Úkoly" byl přejmenován na{" "}
+          <b>"Plánovač úkolů a servisů"</b>, aby reflektoval novou
+          funkcionalitu.
+        </li>
+        <li>
+          🛠️ <b>Globální styly:</b> Přidány nové styly pro responsivní design a
+          lepší čitelnost.
+        </li>
+      </ul>
+      <p>
+        🎉 Užívejte novinky v této verzi a těšíme se na vaše zpětné vazby!
+      </p>
+    </>
+  }
 />
 
-              {/* Stránky přístupné pouze adminům */}
-              <Route
-                path="/create-user"
-                element={
-                  isAuthenticated && userRole === "admin" ? (
-                    <CreateUser />
-                  ) : (
-                    <Navigate to="/login" />
-                  )
-                }
-              />
-              <Route
-                path="/user-management"
-                element={
-                  isAuthenticated && userRole === "admin" ? (
-                    <UserManagement />
-                  ) : (
-                    <Navigate to="/login" />
-                  )
-                }
-              />
-              <Route
-                path="/settings"
-                element={
-                  isAuthenticated ? <SettingsPage /> : <Navigate to="/login" />
-                }
-              />
-            </Routes>
+  
+              {/* Existující Routes */}
+              <Routes>
+                {/* Login stránka */}
+                <Route
+                  path="/login"
+                  element={
+                    isAuthenticated ? (
+                      <Navigate to="/dashboard" />
+                    ) : (
+                      <Login onLogin={handleLogin} />
+                    )
+                  }
+                />
+                {/* Přesměrování na login při přístupu na root */}
+                <Route path="/" element={<Navigate to="/login" />} />
+                {/* Chráněné stránky */}
+                <Route
+                  path="/dashboard"
+                  element={
+                    isAuthenticated ? <Dashboard /> : <Navigate to="/login" />
+                  }
+                />
+                <Route
+                  path="/technicians"
+                  element={
+                    isAuthenticated ? <Technicians /> : <Navigate to="/login" />
+                  }
+                />
+                <Route
+                  path="/clients"
+                  element={
+                    isAuthenticated ? <Clients /> : <Navigate to="/login" />
+                  }
+                />
+                <Route
+                  path="/reports"
+                  element={
+                    isAuthenticated ? <Reports /> : <Navigate to="/login" />
+                  }
+                />
+                <Route
+                  path="/tasks"
+                  element={
+                    isAuthenticated ? <Tasks /> : <Navigate to="/login" />
+                  }
+                />
+                {/* Přidání nové routy pro kalendář */}
+                <Route
+                  path="/calendar"
+                  element={
+                    isAuthenticated ? <CalendarPage /> : <Navigate to="/login" />
+                  }
+                />
+                <Route
+                  path="/warehouse"
+                  element={
+                    isAuthenticated ? <Warehouse /> : <Navigate to="/login" />
+                  }
+                />
+                <Route
+                  path="/systems"
+                  element={
+                    isAuthenticated ? <Systems /> : <Navigate to="/login" />
+                  }
+                />
+                <Route
+                  path="/components"
+                  element={
+                    isAuthenticated ? <Components /> : <Navigate to="/login" />
+                  }
+                />
+                {/* Stránky přístupné pouze adminům */}
+                <Route
+                  path="/create-user"
+                  element={
+                    isAuthenticated && userRole === "admin" ? (
+                      <CreateUser />
+                    ) : (
+                      <Navigate to="/login" />
+                    )
+                  }
+                />
+                <Route
+                  path="/user-management"
+                  element={
+                    isAuthenticated && userRole === "admin" ? (
+                      <UserManagement />
+                    ) : (
+                      <Navigate to="/login" />
+                    )
+                  }
+                />
+                <Route
+                  path="/settings"
+                  element={
+                    isAuthenticated ? <SettingsPage /> : <Navigate to="/login" />
+                  }
+                />
+              </Routes>
+            </>
           )}
         </>
       )}
     </>
   );
+  
 }
 
 export default App;

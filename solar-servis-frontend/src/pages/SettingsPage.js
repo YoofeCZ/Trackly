@@ -51,6 +51,12 @@ const SettingsPage = () => {
     }
   };
 
+  // Funkce pro resetování changelogu
+  const handleResetChangelog = () => {
+    localStorage.removeItem("dismissedChangelog");
+    message.success("Changelog byl resetován a znovu se zobrazí.");
+  };
+
   return (
     <div className="container mt-5">
       <Card title="Nastavení aplikace" bordered={false}>
@@ -91,6 +97,14 @@ const SettingsPage = () => {
             </Button>
           </Form.Item>
         </Form>
+        {/* Tlačítko pro resetování changelogu */}
+        <Button
+          type="default"
+          onClick={handleResetChangelog}
+          style={{ marginTop: "20px" }}
+        >
+          Resetovat changelog
+        </Button>
       </Card>
     </div>
   );

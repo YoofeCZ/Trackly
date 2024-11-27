@@ -84,9 +84,18 @@ const Navbar = ({ onLogout }) => {
                 className={`nav-link ${location.pathname === "/tasks" ? "active" : ""}`}
                 onClick={() => setMenuOpen(false)}
               >
-                Úkoly
+                Plánovač
               </Link>
             </li>
+            <li className="nav-item">
+  <Link
+    to="/calendar"
+    className={`nav-link ${location.pathname === "/calendar" ? "active" : ""}`}
+    onClick={() => setMenuOpen(false)}
+  >
+    Kalendář
+  </Link>
+</li>
             <li className="nav-item">
               <Link
                 to="/warehouse"

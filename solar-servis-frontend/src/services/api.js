@@ -297,6 +297,50 @@ export const createClient = async (clientData) => {
   }
 };
 
+//Sekce pro podúkoly
+// Funkce pro získání podúkolů pro konkrétní úkol
+export const getSubtasks = async (taskId) => {
+  try {
+    const response = await axios.get(`${API_URL}/tasks/${taskId}/subtasks`);
+    return response.data;
+  } catch (error) {
+    console.error('Chyba při získávání podúkolů:', error);
+    throw error;
+  }
+};
+
+// Funkce pro vytvoření nového podúkolu
+export const createSubtask = async (taskId, subtaskData) => {
+  try {
+    const response = await axios.post(`${API_URL}/tasks/${taskId}/subtasks`, subtaskData);
+    return response.data;
+  } catch (error) {
+    console.error('Chyba při vytváření podúkolu:', error);
+    throw error;
+  }
+};
+
+// Funkce pro aktualizaci podúkolu
+export const updateSubtask = async (subtaskId, subtaskData) => {
+  try {
+    const response = await axios.put(`${API_URL}/subtasks/${subtaskId}`, subtaskData);
+    return response.data;
+  } catch (error) {
+    console.error('Chyba při aktualizaci podúkolu:', error);
+    throw error;
+  }
+};
+
+// Funkce pro smazání podúkolu
+export const deleteSubtask = async (subtaskId) => {
+  try {
+    await axios.delete(`${API_URL}/subtasks/${subtaskId}`);
+    return { message: 'Podúkol byl smazán' };
+  } catch (error) {
+    console.error('Chyba při mazání podúkolu:', error);
+    throw error;
+  }
+};
 
 
 
@@ -360,9 +404,19 @@ export const getTasks = async () => {
 };
 
 // Funkce pro vytvoření nového úkolu
+// Funkce pro vytvoření nového úkolu včetně podúkolů
 export const createTask = async (taskData) => {
   try {
-    const response = await axios.post(`${API_URL}/tasks`, taskData);
+    const { subtasks, ...task } = taskData; // Oddělíme podúkoly od úkolu
+    const response = await axios.post(`${API_URL}/tasks`, task);
+
+    // Pokud jsou přítomné podúkoly, vytvoříme je
+    if (subtasks && subtasks.length > 0) {
+      await Promise.all(
+        subtasks.map((subtask) => createSubtask(response.data.id, subtask))
+      );
+    }
+
     return response.data;
   } catch (error) {
     console.error('Chyba při vytváření úkolu:', error);
@@ -370,18 +424,30 @@ export const createTask = async (taskData) => {
   }
 };
 
-
-
-// Funkce pro aktualizaci úkolu
+// Funkce pro aktualizaci úkolu včetně podúkolů
 export const updateTask = async (taskId, taskData) => {
   try {
-    const response = await axios.put(`${API_URL}/tasks/${taskId}`, taskData);
+    const { subtasks, ...task } = taskData; // Oddělíme podúkoly od úkolu
+    const response = await axios.put(`${API_URL}/tasks/${taskId}`, task);
+
+    // Pokud jsou přítomné podúkoly, aktualizujeme je
+    if (subtasks && subtasks.length > 0) {
+      await Promise.all(
+        subtasks.map((subtask) =>
+          subtask.id
+            ? updateSubtask(subtask.id, subtask) // Aktualizace stávajícího podúkolu
+            : createSubtask(taskId, subtask)    // Vytvoření nového podúkolu
+        )
+      );
+    }
+
     return response.data;
   } catch (error) {
     console.error('Chyba při aktualizaci úkolu:', error);
     throw error;
   }
 };
+
 
 // Funkce pro smazání úkolu
 export const deleteTask = async (taskId) => {
